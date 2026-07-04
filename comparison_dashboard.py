@@ -158,7 +158,7 @@ if run_btn:
                 trial_env = fresh_env()
                 agent, _ = train_q_learning_delivery(trial_env, episodes=2000)
                 trial_env2 = fresh_env()
-                p, e = run_q_delivery_policy(trial_env2, agent, max_steps=400)
+                p, e = run_q_delivery_policy(trial_env2, agent, max_steps=2000)
                 delivered = len(trial_env2.filled_slots)
                 if delivered > best_delivered:
                     best_delivered = delivered
@@ -176,6 +176,7 @@ if run_btn:
                 "events": best_events,
                 "env": env,
             }
+
 
         # ── Execute ──
         results["A*"] = _run_astar(fresh_env(), "A*")

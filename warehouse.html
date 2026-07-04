@@ -103,7 +103,8 @@ canvas { display: block; margin: 0 auto; border-radius: 8px; max-width: 100%; im
 /* AGV sidebar - scrollable for 5 robots */
 .sidebar { position: fixed; right: 0; top: 0; width: 280px; height: 100vh; background: #1a1d27; border-left: 1px solid #2a2e3a; padding: 16px; overflow-y: auto; z-index: 100; transform: translateX(100%); transition: transform 0.3s; }
 .sidebar.open { transform: translateX(0); }
-.sidebar-toggle { position: fixed; right: 12px; top: 12px; z-index: 101; background: #1a1d27; border: 1px solid #2a2e3a; border-radius: 8px; padding: 8px 12px; color: #fff; cursor: pointer; font-size: 13px; }
+.sidebar-toggle { position: fixed; right: 12px; top: 12px; z-index: 101; background: #1a1d27; border: 1px solid #2a2e3a; border-radius: 8px; padding: 8px 12px; color: #fff; cursor: pointer; font-size: 13px; transition: opacity 0.3s, visibility 0.3s; }
+.sidebar-toggle.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 .main-content { margin-right: 0; transition: margin-right 0.3s; }
 .main-content.shifted { margin-right: 280px; }
 
@@ -172,7 +173,7 @@ canvas { display: block; margin: 0 auto; border-radius: 8px; max-width: 100%; im
 <div class="main-content" id="mainContent">
 <div class="container">
 
-<h1>🏭 LogiX: Optimization & Play — 50×50</h1>
+<h1>🏭 LogiX: Optimization & Play</h1>
 
 <!-- Tabs -->
 <div class="tab-bar">
@@ -206,7 +207,7 @@ canvas { display: block; margin: 0 auto; border-radius: 8px; max-width: 100%; im
     <div class="col-3">
       <div id="simStatus" class="msg msg-info">Click <strong>RUN</strong> to start simulation with 5 robots.</div>
       <div class="progress-bar" id="simProgressBar"><div class="progress-fill" id="simProgressFill"></div></div>
-      <div id="simTitle" style="text-align:center;font-size:13px;font-weight:600;color:#aaa;margin-bottom:4px;">🏁 Ready — 50×50</div>
+      <div id="simTitle" style="text-align:center;font-size:13px;font-weight:600;color:#aaa;margin-bottom:4px;">🏁 Ready</div>
       <div class="canvas-wrap"><canvas id="simCanvas" width="600" height="600"></canvas></div>
     </div>
   </div>
@@ -992,6 +993,9 @@ function renderToCanvas(canvas, env, robotPositions, pathSoFar, eventsSoFar, tit
 // ============================================================
 //  TAB SWITCHING
 // ============================================================
+// Store last simulation results so sidebar persists across tab switches
+let lastSimResult = null;
+
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -999,7 +1003,21 @@ function switchTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'compare') drawPreview();
   if (name === 'game') renderGame();
-  if (name === 'sim') renderSimIdle();
+  if (name === 'sim') {
+    // If simulation results exist, restore sidebar from them instead of resetting
+    if (lastSimResult) {
+      renderSimIdle();
+      // Restore sidebar from last simulation result
+      for (let ri = 0; ri < NUM_ROBOTS; ri++) {
+        let r = lastSimResult.robots[ri] || { carrying: false, delivered: 0, battery: 100, pos: [0, 0] };
+        let status = lastSimResult.animReplay && lastSimResult.animReplay.is_done() ? '✅ COMPLETED' : '⏸️ IDLE';
+        updateAGVStatus(ri + 1, r.pos || [0, 0], status, r.battery || 100, 
+          lastSimResult.delivered || 0, lastSimResult.total || 20);
+      }
+    } else {
+      renderSimIdle();
+    }
+  }
 }
 
 // ============================================================
@@ -1008,8 +1026,10 @@ function switchTab(name) {
 function toggleSidebar() {
   let sb = document.getElementById('sidebar');
   let mc = document.getElementById('mainContent');
+  let toggle = document.getElementById('sidebarToggle');
   sb.classList.toggle('open');
   mc.classList.toggle('shifted');
+  toggle.classList.toggle('hidden');
 }
 
 const AGV_COLORS = ['#4FC3F7', '#FF8A65', '#81C784', '#FFD54F', '#CE93D8'];
@@ -1132,7 +1152,7 @@ let simAbort = false;
 
 function renderSimIdle() {
   let env = freshEnv();
-  document.getElementById('simTitle').textContent = '🏁 Ready — 50×50';
+  document.getElementById('simTitle').textContent = '🏁 Ready';
   let robots = [];
   for (let i = 0; i < NUM_ROBOTS; i++) robots.push([0, 0]);
   renderToCanvas(document.getElementById('simCanvas'), env, robots, [], {});
@@ -1286,6 +1306,15 @@ async function runSimulation() {
     let r = result.robots[ri] || { carrying: false, delivered: 0, battery: 100, pos: [0, 0] };
     updateAGVStatus(ri + 1, allRobotsPos[ri] || [0, 0], animReplay.is_done() ? '✅ COMPLETED' : '⏸️ IDLE', r.battery || 100, animReplay.filled_slots.size, animReplay.boxes.size);
   }
+
+  // Save simulation results so sidebar persists across tab switches
+  lastSimResult = {
+    robots: result.robots,
+    animReplay: animReplay,
+    delivered: animReplay.filled_slots.size,
+    total: animReplay.boxes.size,
+    allRobotsPos: allRobotsPos
+  };
 
   simRunning = false;
   btn.disabled = false;

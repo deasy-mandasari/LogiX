@@ -28,8 +28,11 @@ from env import GridWorld
 from algorithms import (
     deliver_boxes_astar,
     deliver_boxes_dijkstra,
+    deliver_boxes_multi_astar,
+    deliver_boxes_multi_dijkstra,
     train_q_learning_delivery,
     run_q_delivery_policy,
+    deliver_boxes_multi_qlearning,
 )
 from renderer import draw_frame, TILE, resize, compose, build_background, build_objects, build_overlay
 
@@ -104,14 +107,38 @@ def render_agv_status(placeholder, robot_id, pos, status, battery, delivered, to
         st.progress(battery / 100)
         st.write(f"🔋 {battery:.0f}% — 📦 Delivered: {delivered}/{total}")
 
-# Initial AGV state (before any tab interaction)
-initial_boxes = int(np.count_nonzero(grid == 3))
-render_agv_status(agv_status_placeholder, "AGV-1", (0, 0), "⏸️ IDLE", 100, 0, initial_boxes)
+# ── Persist AGV status across Streamlit re-runs ──
+if "agv_status" not in st.session_state:
+    initial_boxes = int(np.count_nonzero(grid == 3))
+    st.session_state.agv_status = {
+        "robot_id": "AGV-1",
+        "pos": (0, 0),
+        "status": "⏸️ IDLE",
+        "battery": 100,
+        "delivered": 0,
+        "total": initial_boxes,
+    }
+
+# Render persisted AGV status (or initial if never updated)
+render_agv_status(
+    agv_status_placeholder,
+    st.session_state.agv_status["robot_id"],
+    st.session_state.agv_status["pos"],
+    st.session_state.agv_status["status"],
+    st.session_state.agv_status["battery"],
+    st.session_state.agv_status["delivered"],
+    st.session_state.agv_status["total"],
+)
 
 # ── TABS — Simulation | Comparison Dashboard | Manual Game ────────────────────
 tab_sim, tab_compare, tab_game = st.tabs(["🚀 Simulation", "📊 Algorithm Comparison Dashboard", "🎮 Manual Game"])
 
 with tab_sim:
+
+    sim_mode = st.sidebar.radio(
+        "Simulation Mode",
+        ["Single Robot", "Multi Robot (5 AGVs)"]
+    )
 
     mode = st.sidebar.selectbox(
         "Algorithm",
@@ -216,6 +243,15 @@ with tab_sim:
                     cur_status = "🚶 MOVING"
                 render_agv_status(agv_placeholder, "AGV-1", pos, cur_status, battery,
                                   len(anim_env.filled_slots), len(anim_env.boxes))
+                # Persist to session state so it survives re-runs
+                st.session_state.agv_status = {
+                    "robot_id": "AGV-1",
+                    "pos": pos,
+                    "status": cur_status,
+                    "battery": battery,
+                    "delivered": len(anim_env.filled_slots),
+                    "total": len(anim_env.boxes),
+                }
 
             # Sleep for animation
             time.sleep(speed_ms / 1000.0)
@@ -230,56 +266,280 @@ with tab_sim:
 
     if st.button("RUN"):
         with st.spinner("Computing path..."):
-            simulation_env = fresh_env()
+            if sim_mode == "Multi Robot (5 AGVs)":
+                # ── Multi-robot simulation ──
+                algo_used = mode
+                multi_env = fresh_env()
+                
+                if algo_used == "Q-Learning":
+                    st.info("🧠 Training 5 Q-Learning agents (one per robot)... Each robot will deliver 4 boxes and gather at the magenta goal.")
+                    multi_results = deliver_boxes_multi_qlearning(multi_env, num_robots=5, boxes_per_robot=4)
+                elif algo_used == "A*":
+                    multi_results = deliver_boxes_multi_astar(multi_env, num_robots=5)
+                else:
+                    multi_results = deliver_boxes_multi_dijkstra(multi_env, num_robots=5)
 
-            if mode == "A*":
-                path, events = deliver_boxes_astar(simulation_env)
-            elif mode == "Dijkstra":
-                path, events = deliver_boxes_dijkstra(simulation_env)
+                # Summary
+                total_delivered = len(multi_env.filled_slots)
+                total_boxes = len(multi_env.boxes)
+                st.info(
+                    f"🤖 **Multi-Robot Simulation Complete!** "
+                    f"{total_delivered} / {total_boxes} boxes delivered "
+                    f"by {len(multi_results)} robots using {algo_used}."
+                )
+
+                # Show per-robot stats — each robot competes for 20 boxes
+                st.subheader("📊 Per-Robot Statistics (20 Boxes Total)")
+                st.info("🤖 **5 AGVs** berebut **20 box** — setiap robot berusaha mengirimkan sebanyak mungkin box dalam 1x running.")
+                
+                total_delivered_all = 0
+                robot_stats = []
+                for rid, (rpath, revents) in multi_results.items():
+                    pickups = sum(1 for v in revents.values() if v == 'pickup')
+                    deliveries = sum(1 for v in revents.values() if v == 'delivery')
+                    # Get actual delivered count from robot state
+                    if rid in multi_env.robots:
+                        actual_delivered = multi_env.robots[rid].delivered_count
+                    else:
+                        actual_delivered = deliveries
+                    total_delivered_all += actual_delivered
+                    robot_stats.append({
+                        "Robot": rid,
+                        "📦 Boxes Delivered": actual_delivered,
+                        "Path Steps": len(rpath),
+                        "Pickups": pickups,
+                        "Deliveries": deliveries,
+                    })
+                
+                # Sort by boxes delivered (descending)
+                robot_stats.sort(key=lambda r: r["📦 Boxes Delivered"], reverse=True)
+                
+                # ── Bar chart of boxes per robot ──
+                fig_robot, ax_robot = plt.subplots(figsize=(10, 4))
+                robot_names = [r["Robot"] for r in robot_stats]
+                box_counts = [r["📦 Boxes Delivered"] for r in robot_stats]
+                colors_robot = plt.cm.Set2(np.linspace(0, 1, len(robot_names)))
+                bars = ax_robot.bar(robot_names, box_counts, color=colors_robot, edgecolor='white', linewidth=1.5, width=0.6)
+                ax_robot.set_ylabel("Jumlah Box Dikirim", fontsize=12)
+                ax_robot.set_title("📦 Box Dikirim per AGV (dari 20 box)", fontsize=14, fontweight="bold")
+                ax_robot.set_ylim(0, max(box_counts + [1]) * 1.3)
+                ax_robot.spines["top"].set_visible(False)
+                ax_robot.spines["right"].set_visible(False)
+                for bar, val in zip(bars, box_counts):
+                    ax_robot.text(
+                        bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.3,
+                        str(val), ha="center", va="bottom", fontsize=14, fontweight="bold",
+                    )
+                st.pyplot(fig_robot)
+                plt.close(fig_robot)
+                
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    st.dataframe(robot_stats, use_container_width=True, hide_index=True)
+                with col2:
+                    # Highlight the winner
+                    winner = robot_stats[0]
+                    st.markdown(
+                        f"""
+                        <div style="
+                            background: linear-gradient(135deg, #FFD70022, #FFD70044);
+                            border: 3px solid #FFD700;
+                            border-radius: 16px;
+                            padding: 20px;
+                            text-align: center;
+                        ">
+                            <div style="font-size: 40px;">🏆</div>
+                            <h3 style="margin: 8px 0; color: #B8860B;">{winner['Robot']}</h3>
+                            <div style="font-size: 14px; color: #666;">Robot dengan kiriman terbanyak</div>
+                            <div style="font-size: 32px; font-weight: bold; margin: 12px 0; color: #B8860B;">
+                                {winner['📦 Boxes Delivered']} / 20 box
+                            </div>
+                            <div style="font-size: 14px; color: #666;">berhasil dikirim dalam 1x running</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                
+                st.markdown(f"**Total box terkirim: {total_delivered_all} / 20**")
+                
+                # ── KETERANGAN: per-AGV delivery report ──
+                st.subheader("📋 Keterangan Hasil Pengiriman")
+                
+                # Build a narrative description for each AGV
+                keterangan_lines = []
+                for i, rs in enumerate(robot_stats):
+                    rid = rs["Robot"]
+                    boxes = rs["📦 Boxes Delivered"]
+                    steps = rs["Path Steps"]
+                    if i == 0:
+                        medal = "🥇"
+                    elif i == 1:
+                        medal = "🥈"
+                    elif i == 2:
+                        medal = "🥉"
+                    else:
+                        medal = "🤖"
+                    keterangan_lines.append(
+                        f"{medal} **{rid}** berhasil mengirim **{boxes} box** "
+                        f"dengan menempuh **{steps} langkah** perjalanan."
+                    )
+                
+                # Add total summary
+                keterangan_lines.append(
+                    f"\n📦 **Total keseluruhan:** {total_delivered_all} dari 20 box berhasil dikirim "
+                    f"oleh 5 AGV dalam 1x running menggunakan algoritma **{algo_used}**."
+                )
+                
+                for line in keterangan_lines:
+                    st.markdown(line)
+
+
+
+                # Show final state of the warehouse
+                st.subheader("🗺️ Final Warehouse State")
+                draw_frame(
+                    multi_env,
+                    title=f"Multi-Robot ({algo_used}) — {total_delivered}/{total_boxes} delivered"
+                )
+
+                # Show individual robot paths
+                st.subheader("🛤️ Individual Robot Paths")
+                robot_tabs = st.tabs([rid for rid in multi_results.keys()])
+                for tab_i, (rid, (rpath, revents)) in enumerate(multi_results.items()):
+                    with robot_tabs[tab_i]:
+                        replay_env = fresh_env()
+                        for pos, kind in revents.items():
+                            if kind == 'pickup':
+                                replay_env.collect_box(pos)
+                            else:
+                                replay_env.fill_slot(pos)
+                        # Get actual delivered count from robot state
+                        if rid in multi_env.robots:
+                            boxes_delivered = multi_env.robots[rid].delivered_count
+                        else:
+                            boxes_delivered = len([v for v in revents.values() if v == 'delivery'])
+                        draw_frame(
+                            replay_env,
+                            robot_pos=rpath[-1] if rpath else replay_env.start,
+                            path_so_far=rpath,
+                            events_so_far=revents,
+                            title=f"{rid} — {boxes_delivered} box dikirim, {len(rpath)} langkah"
+                        )
+
+
             else:
-                best_path, best_events = [], {}
-                best_delivered = -1
-                progress_bar = st.progress(0)
-                for attempt in range(3):
-                    trial_env = fresh_env()
-                    agent, _ = train_q_learning_delivery(trial_env, episodes=2000)
-                    trial_env2 = fresh_env()
-                    p, e = run_q_delivery_policy(trial_env2, agent, max_steps=400)
-                    delivered = len(trial_env2.filled_slots)
-                    if delivered > best_delivered:
-                        best_delivered = delivered
-                        best_path, best_events = p, e
-                    if delivered == len(trial_env2.boxes):
-                        break
-                    progress_bar.progress((attempt + 1) / 3)
-                path, events = best_path, best_events
-                progress_bar.empty()
+                # ── Single robot simulation (original) ──
+                simulation_env = fresh_env()
 
-            # Summary stats before animation
-            num_boxes = len(simulation_env.boxes)
-            num_delivered = len(simulation_env.filled_slots)
+                if mode == "A*":
+                    path, events = deliver_boxes_astar(simulation_env)
+                elif mode == "Dijkstra":
+                    path, events = deliver_boxes_dijkstra(simulation_env)
+                else:
+                    # Q-Learning: train agent and run policy
+                    # Use simulation_env directly so stats are accurate
+                    agent, reward_log = train_q_learning_delivery(simulation_env, episodes=2000)
+                    simulation_env = fresh_env()  # fresh env for inference
+                    path, events = run_q_delivery_policy(simulation_env, agent, max_steps=2000)
 
-            st.info(
-                f"📦 **Path computed**: {len(path)} steps, "
-                f"{num_delivered} / {num_boxes} boxes will be delivered. "
-                f"Starting animation..."
-            )
+                    # ── Show Q-Learning Training Progress ──
+                    with st.expander("🧠 Q-Learning Training Data & Learning Progress", expanded=True):
+                        training_data = agent.get_training_data()
+                        
+                        col_chart, col_stats = st.columns([2, 1])
+                        
+                        with col_chart:
+                            # Plot reward convergence
+                            fig_train, ax_train = plt.subplots(figsize=(10, 4))
+                            rewards = [d['total_reward'] for d in training_data]
+                            episodes_x = list(range(len(rewards)))
+                            
+                            # Raw reward line
+                            ax_train.plot(episodes_x, rewards, alpha=0.3, color='#1A936F', linewidth=0.8, label='Reward per episode')
+                            
+                            # Smoothed moving average
+                            window = 50
+                            if len(rewards) >= window:
+                                smoothed = np.convolve(rewards, np.ones(window)/window, mode='valid')
+                                ax_train.plot(range(window-1, len(rewards)), smoothed, color='#1A936F', linewidth=2.5, label=f'Moving avg (n={window})')
+                            
+                            ax_train.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
+                            ax_train.set_xlabel('Episode', fontsize=11)
+                            ax_train.set_ylabel('Total Reward', fontsize=11)
+                            ax_train.set_title('📈 Q-Learning Reward Convergence', fontsize=13, fontweight='bold')
+                            ax_train.legend(fontsize=10)
+                            ax_train.spines['top'].set_visible(False)
+                            ax_train.spines['right'].set_visible(False)
+                            st.pyplot(fig_train)
+                            plt.close(fig_train)
+                        
+                        with col_stats:
+                            st.markdown("#### 📊 Training Statistics")
+                            last_ep = training_data[-1] if training_data else {}
+                            successful_eps = sum(1 for d in training_data if d['success'])
+                            total_eps = len(training_data)
+                            avg_reward_last100 = np.mean(rewards[-100:]) if len(rewards) >= 100 else np.mean(rewards)
+                            
+                            st.metric("Total Episodes", f"{total_eps}")
+                            st.metric("Successful Episodes", f"{successful_eps} ({successful_eps/max(total_eps,1)*100:.1f}%)")
+                            st.metric("Avg Reward (last 100)", f"{avg_reward_last100:.1f}")
+                            st.metric("Final Q-Table Size", f"{agent.get_q_table_size()}")
+                            st.metric("Final Epsilon", f"{agent.epsilon:.3f}")
+                            st.metric("Boxes Delivered (last ep)", f"{last_ep.get('boxes_delivered', 0)}")
+                        
+                        # ── Training log table ──
+                        with st.expander("📋 Detailed Training Log (per episode)", expanded=False):
+                            df_train = pd.DataFrame(training_data)
+                            df_train['success'] = df_train['success'].map({1: '✅ Yes', 0: '❌ No'})
+                            st.dataframe(df_train, use_container_width=True, hide_index=True)
+                            
+                            # Download training data
+                            csv_train = df_train.to_csv(index=False)
+                            st.download_button(
+                                label="📥 Download Training Data CSV",
+                                data=csv_train,
+                                file_name="qlearning_training_data.csv",
+                                mime="text/csv",
+                            )
 
-        # Animate step by step
-        final_env = animate_path(simulation_env, path, events, 80, agv_status_placeholder)
+                # Summary stats before animation
+                num_boxes = len(simulation_env.boxes)
+                num_delivered = len(simulation_env.filled_slots)
 
-        # Final summary
-        num_boxes = len(final_env.boxes)
-        num_delivered = len(final_env.filled_slots)
-        st.success(
-            f"📦 **SUMMARY**: {num_delivered} / {num_boxes} boxes delivered  —  "
-            f"Robot path has {len(path)} steps"
-        )
+                st.info(
+                    f"📦 **Path computed**: {len(path)} steps, "
+                    f"{num_delivered} / {num_boxes} boxes will be delivered. "
+                    f"Starting animation..."
+                )
 
-        # Final static view
-        draw_frame(final_env, robot_pos=path[-1] if path else final_env.start,
-                   path_so_far=path, events_so_far=events,
-                   title="🏁 Finish")
+                # Animate step by step
+                final_env = animate_path(simulation_env, path, events, 80, agv_status_placeholder)
+
+                # Final summary
+                num_boxes = len(final_env.boxes)
+                num_delivered = len(final_env.filled_slots)
+                st.success(
+                    f"📦 **SUMMARY**: {num_delivered} / {num_boxes} boxes delivered  —  "
+                    f"Robot path has {len(path)} steps"
+                )
+
+                # ── KETERANGAN: Single robot delivery report ──
+                st.subheader("📋 Keterangan Hasil Pengiriman")
+                st.markdown(
+                    f"🤖 **AGV-1** berhasil mengirim **{num_delivered} box** "
+                    f"dari total **{num_boxes} box** yang tersedia, "
+                    f"dengan menempuh **{len(path)} langkah** perjalanan "
+                    f"menggunakan algoritma **{mode}**."
+                )
+                if num_delivered == num_boxes:
+                    st.success("🎉 **AGV-1** berhasil mengirim SEMUA box! 🎉")
+                else:
+                    st.warning(f"⚠️ **AGV-1** hanya berhasil mengirim {num_delivered} dari {num_boxes} box. Beberapa box tidak terjangkau.")
+
+                # Final static view
+                draw_frame(final_env, robot_pos=path[-1] if path else final_env.start,
+                           path_so_far=path, events_so_far=events,
+                           title="🏁 Finish")
     else:
         # Show initial empty map
         draw_frame(fresh_env())
@@ -340,7 +600,7 @@ with tab_compare:
                     trial_env = fresh_env()
                     agent, _ = train_q_learning_delivery(trial_env, episodes=2000)
                     trial_env2 = fresh_env()
-                    p, e = run_q_delivery_policy(trial_env2, agent, max_steps=400)
+                    p, e = run_q_delivery_policy(trial_env2, agent, max_steps=2000)
                     delivered = len(trial_env2.filled_slots)
                     if delivered > best_delivered:
                         best_delivered = delivered
@@ -358,6 +618,7 @@ with tab_compare:
                     "events": best_events,
                     "env": env,
                 }
+
 
             # ── Execute ──
             results["A*"] = _run_astar(fresh_env(), "A*")
@@ -827,6 +1088,15 @@ with tab_game:
             status = "🚶 MOVING"
 
         render_agv_status(agv_status_placeholder, "AGV-1", pos, status, battery, delivered, total)
+        # Persist to session state so it survives re-runs
+        st.session_state.agv_status = {
+            "robot_id": "AGV-1",
+            "pos": pos,
+            "status": status,
+            "battery": battery,
+            "delivered": delivered,
+            "total": total,
+        }
 
     def reset_game():
         st.session_state.game_env = fresh_env()
