@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogiX: Warehouse Optimization & Play</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0e1117; color: #e0e0e0; min-height: 100vh; }
+.container { max-width: 1400px; margin: 0 auto; padding: 16px; }
+h1 { text-align: center; font-size: 28px; margin-bottom: 12px; background: linear-gradient(135deg, #FF6B35, #004E89, #1A936F); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+h2 { font-size: 20px; margin-bottom: 8px; }
+h3 { font-size: 16px; margin-bottom: 6px; }
+
+/* Tabs */
+.tab-bar { display: flex; gap: 4px; margin-bottom: 16px; background: #1a1d27; border-radius: 10px; padding: 4px; }
+.tab-btn { flex: 1; padding: 10px 16px; border: none; background: transparent; color: #888; font-size: 14px; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.2s; }
+.tab-btn:hover { color: #ccc; background: #252a36; }
+.tab-btn.active { background: #2d3348; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Layout */
+.row { display: flex; gap: 16px; flex-wrap: wrap; }
+.col { flex: 1; min-width: 280px; }
+.col-3 { flex: 3; min-width: 400px; }
+.col-1 { flex: 1; min-width: 250px; }
+
+/* Cards */
+.card { background: #1a1d27; border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid #2a2e3a; }
+.card-title { font-size: 14px; font-weight: 600; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Buttons */
+.btn { padding: 8px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: #004E89; color: #fff; }
+.btn-primary:hover { background: #0066b3; }
+.btn-success { background: #1A936F; color: #fff; }
+.btn-success:hover { background: #22b588; }
+.btn-danger { background: #c0392b; color: #fff; }
+.btn-danger:hover { background: #e74c3c; }
+.btn-warning { background: #FF6B35; color: #fff; }
+.btn-warning:hover { background: #ff8555; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-block { width: 100%; justify-content: center; }
+
+/* Select */
+select { padding: 8px 12px; border-radius: 8px; border: 1px solid #2a2e3a; background: #252a36; color: #e0e0e0; font-size: 14px; width: 100%; outline: none; }
+select:focus { border-color: #004E89; }
+
+/* Canvas */
+canvas { display: block; margin: 0 auto; border-radius: 8px; max-width: 100%; image-rendering: pixelated; }
+
+/* Status bar */
+.status-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.status-item { background: #1a1d27; border-radius: 8px; padding: 8px 14px; border: 1px solid #2a2e3a; font-size: 13px; }
+.status-item .label { color: #888; }
+.status-item .value { color: #fff; font-weight: 600; }
+
+/* Progress bar */
+.progress-bar { height: 6px; background: #2a2e3a; border-radius: 3px; overflow: hidden; margin: 8px 0; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #004E89, #1A936F); border-radius: 3px; transition: width 0.3s; width: 0%; }
+
+/* Message */
+.msg { padding: 10px 14px; border-radius: 8px; margin: 8px 0; font-size: 13px; }
+.msg-info { background: #1a2a3a; border-left: 3px solid #004E89; }
+.msg-success { background: #1a2a2a; border-left: 3px solid #1A936F; }
+.msg-warning { background: #2a2a1a; border-left: 3px solid #FF6B35; }
+.msg-error { background: #2a1a1a; border-left: 3px solid #c0392b; }
+
+/* D-pad */
+.dpad { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.dpad-row { display: flex; gap: 4px; }
+.dpad-btn { width: 60px; height: 60px; border: none; border-radius: 10px; background: #252a36; color: #fff; font-size: 24px; cursor: pointer; transition: all 0.1s; display: flex; align-items: center; justify-content: center; }
+.dpad-btn:hover { background: #3a4055; }
+.dpad-btn:active { transform: scale(0.92); }
+.dpad-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Metric cards */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.metric { text-align: center; padding: 10px; background: #252a36; border-radius: 8px; }
+.metric .num { font-size: 22px; font-weight: 700; }
+.metric .lbl { font-size: 11px; color: #888; margin-top: 2px; }
+
+/* Comparison */
+.compare-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.compare-card { border-radius: 12px; padding: 16px; text-align: center; }
+.compare-card h3 { margin: 0 0 8px 0; }
+.compare-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.compare-metrics .cm { font-size: 20px; font-weight: 700; }
+.compare-metrics .cl { font-size: 11px; color: #aaa; }
+
+/* Radar chart */
+#radarChart { max-width: 500px; margin: 0 auto; }
+
+/* Decision log */
+.log-entry { padding: 4px 0; font-size: 12px; color: #bbb; }
+.log-entry::before { content: "• "; color: #004E89; }
+
+/* Side-by-side paths */
+.paths-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.paths-row canvas { max-width: 320px; }
+
+/* AGV sidebar - scrollable for 5 robots */
+.sidebar { position: fixed; right: 0; top: 0; width: 280px; height: 100vh; background: #1a1d27; border-left: 1px solid #2a2e3a; padding: 16px; overflow-y: auto; z-index: 100; transform: translateX(100%); transition: transform 0.3s; }
+.sidebar.open { transform: translateX(0); }
+.sidebar-toggle { position: fixed; right: 12px; top: 12px; z-index: 101; background: #1a1d27; border: 1px solid #2a2e3a; border-radius: 8px; padding: 8px 12px; color: #fff; cursor: pointer; font-size: 13px; }
+.main-content { margin-right: 0; transition: margin-right 0.3s; }
+.main-content.shifted { margin-right: 280px; }
+
+.agv-card { background: #252a36; border-radius: 10px; padding: 12px; margin-bottom: 10px; border: 1px solid #2a2e3a; }
+.agv-card .agv-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.agv-card .agv-status { font-size: 12px; color: #888; }
+.agv-card .agv-pos { font-size: 11px; color: #888; }
+.agv-card .agv-battery-bar { height: 4px; background: #2a2e3a; border-radius: 2px; overflow: hidden; margin: 6px 0; }
+.agv-card .agv-battery-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+.agv-card .agv-battery-text { font-size: 11px; }
+.agv-card .agv-delivered-text { font-size: 11px; color: #aaa; }
+
+/* Robot colors */
+.color-0 { color: #4FC3F7; }
+.color-1 { color: #FF8A65; }
+.color-2 { color: #81C784; }
+.color-3 { color: #FFD54F; }
+.color-4 { color: #CE93D8; }
+.bg-color-0 { background: #4FC3F7; }
+.bg-color-1 { background: #FF8A65; }
+.bg-color-2 { background: #81C784; }
+.bg-color-3 { background: #FFD54F; }
+.bg-color-4 { background: #CE93D8; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .compare-grid { grid-template-columns: 1fr; }
+  .col-3, .col-1 { min-width: 100%; }
+  .sidebar { width: 100%; }
+  .main-content.shifted { margin-right: 0; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1a1d27; }
+::-webkit-scrollbar-thumb { background: #2a2e3a; border-radius: 3px; }
+
+/* Winner banner */
+.winner-banner { background: linear-gradient(135deg, #FF6B3522, #FF6B3544); border: 3px solid #FF6B35; border-radius: 16px; padding: 24px; text-align: center; margin: 12px 0; }
+.winner-banner h2 { margin: 8px 0; }
+
+/* Deep dive tabs */
+.dive-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.dive-btn { padding: 8px 16px; border: none; background: #252a36; color: #888; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 13px; font-weight: 600; }
+.dive-btn.active { background: #2d3348; color: #fff; }
+.dive-content { display: none; padding: 12px; background: #252a36; border-radius: 0 8px 8px 8px; }
+.dive-content.active { display: block; }
+
+/* Bar chart container */
+.chart-container { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.chart-box { background: #1a1d27; border-radius: 8px; padding: 12px; min-width: 200px; flex: 1; }
+.chart-box h4 { text-align: center; margin-bottom: 8px; font-size: 13px; color: #aaa; }
+
+/* Scrollable canvas container */
+.canvas-wrap { max-height: 75vh; overflow-y: auto; display: flex; justify-content: center; border-radius: 8px; background: #0e1117; }
+</style>
+</head>
+<body>
+
+<div class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">🤖 AGV Fleet</div>
+<div class="sidebar" id="sidebar">
+  <h3 style="margin-bottom:12px;">🤖 AGV Fleet (5 Robots)</h3>
+  <div id="agvStatusList"></div>
+</div>
+
+<div class="main-content" id="mainContent">
+<div class="container">
+
+<h1>🏭 LogiX: Optimization & Play — 50×50</h1>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('sim')">🚀 Simulation</button>
+  <button class="tab-btn" onclick="switchTab('compare')">📊 Algorithm Comparison</button>
+  <button class="tab-btn" onclick="switchTab('game')">🎮 Manual Game</button>
+</div>
+
+<!-- ============ TAB 1: SIMULATION ============ -->
+<div class="tab-content active" id="tab-sim">
+  <div class="row">
+    <div class="col-1">
+      <div class="card">
+        <div class="card-title">Algorithm</div>
+        <select id="algoSelect">
+          <option value="astar">A*</option>
+          <option value="dijkstra">Dijkstra</option>
+          <option value="qlearning">Q-Learning</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="card-title">🤖 Robots: <span id="simRobotCount">5</span></div>
+        <div style="font-size:12px;color:#888;">📦 Boxes: <span id="simBoxCount">20</span> &nbsp;|&nbsp; 🧱 Obstacles: <span id="simObsCount">~</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🧠 AI Decision Log</div>
+        <div id="decisionLog"></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="runSimulation()" id="simRunBtn">▶️ RUN</button>
+    </div>
+    <div class="col-3">
+      <div id="simStatus" class="msg msg-info">Click <strong>RUN</strong> to start simulation with 5 robots.</div>
+      <div class="progress-bar" id="simProgressBar"><div class="progress-fill" id="simProgressFill"></div></div>
+      <div id="simTitle" style="text-align:center;font-size:13px;font-weight:600;color:#aaa;margin-bottom:4px;">🏁 Ready — 50×50</div>
+      <div class="canvas-wrap"><canvas id="simCanvas" width="600" height="600"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TAB 2: COMPARISON ============ -->
+<div class="tab-content" id="tab-compare">
+  <p style="margin-bottom:12px;color:#aaa;">Run <strong>A*</strong>, <strong>Dijkstra</strong>, and <strong>Q-Learning</strong> on the same 50×50 warehouse map (single robot) and compare their performance.</p>
+  <div style="text-align:center;margin-bottom:16px;">
+    <button class="btn btn-primary" onclick="runComparison()" id="compareRunBtn" style="font-size:16px;padding:12px 32px;">🚀 Run All Algorithms</button>
+  </div>
+  <div id="compareResults" style="display:none;">
+    <div class="msg msg-success" id="compareDoneMsg">✅ All 3 algorithms completed!</div>
+    <h2>📋 Performance Metrics</h2>
+    <div class="compare-grid" id="metricCards"></div>
+    <h2>🗺️ Final Path Comparison</h2>
+    <p style="color:#888;font-size:13px;margin-bottom:8px;">Each column shows the final path taken by the robot on the 50×50 map.</p>
+    <div class="paths-row" id="pathComparison"></div>
+    <h2>📈 Metrics Comparison Chart</h2>
+    <div class="chart-container" id="barCharts"></div>
+    <h2>🕸️ Multi-Dimensional Comparison</h2>
+    <canvas id="radarChart" width="400" height="400" style="max-width:400px;margin:0 auto;display:block;"></canvas>
+    <h2>🔍 Per-Algorithm Deep Dive</h2>
+    <div class="dive-tabs" id="diveTabs"></div>
+    <div id="diveContent"></div>
+    <h2>🏆 Summary & Recommendation</h2>
+    <div id="winnerSection"></div>
+  </div>
+  <div id="compareIdle">
+    <div class="msg msg-info">👆 Click <strong>'Run All Algorithms'</strong> to start the comparison.</div>
+    <h3>🗺️ Warehouse Map Preview</h3>
+    <div id="previewTitle" style="text-align:center;font-size:13px;font-weight:600;color:#aaa;margin-bottom:4px;">Warehouse Layout (50×50)</div>
+    <div class="canvas-wrap"><canvas id="previewCanvas" width="600" height="600"></canvas></div>
+    <div style="margin-top:12px;color:#888;font-size:13px;">
+      <strong>What you'll see:</strong><br>
+      1. Performance Metrics — Side-by-side comparison<br>
+      2. Path Visualization — Final path each algorithm took<br>
+      3. Bar Charts — Visual comparison of key metrics<br>
+      4. Radar Chart — Multi-dimensional performance profile<br>
+      5. Deep Dive — Per-algorithm analysis<br>
+      6. Winner — Automatic recommendation
+    </div>
+  </div>
+</div>
+
+<!-- ============ TAB 3: MANUAL GAME ============ -->
+<div class="tab-content" id="tab-game">
+  <div class="row">
+    <div class="col-3">
+      <div id="gameTitle" style="text-align:center;font-size:13px;font-weight:600;color:#aaa;margin-bottom:4px;">🎮 Manual Game — 50×50</div>
+      <div class="canvas-wrap"><canvas id="gameCanvas" width="600" height="600"></canvas></div>
+      <div id="gameMsg" class="msg msg-info">🎮 Press <strong>START</strong> to begin playing!</div>
+    </div>
+    <div class="col-1">
+      <button class="btn btn-success btn-block" onclick="startGame()" id="startGameBtn" style="font-size:16px;padding:12px 20px;margin-bottom:12px;">▶️ START GAME</button>
+      <div class="card">
+        <div class="card-title">🎮 Controls</div>
+        <div class="dpad">
+          <div class="dpad-row">
+            <div style="width:60px;"></div>
+            <button class="dpad-btn" id="btnUp" onclick="gameMove(-1,0)" disabled>⬆</button>
+            <div style="width:60px;"></div>
+          </div>
+          <div class="dpad-row">
+            <button class="dpad-btn" id="btnLeft" onclick="gameMove(0,-1)" disabled>⬅</button>
+            <button class="dpad-btn" id="btnDown" onclick="gameMove(1,0)" disabled>⬇</button>
+            <button class="dpad-btn" id="btnRight" onclick="gameMove(0,1)" disabled>➡</button>
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:#888;">Select robot:</div>
+        <select id="gameRobotSelect" style="margin-top:4px;" onchange="changeGameRobot()">
+          <option value="0">🤖 AGV-1 (Blue)</option>
+          <option value="1">🤖 AGV-2 (Orange)</option>
+          <option value="2">🤖 AGV-3 (Green)</option>
+          <option value="3">🤖 AGV-4 (Yellow)</option>
+          <option value="4">🤖 AGV-5 (Purple)</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="card-title">📖 Game Instructions</div>
+        <div style="font-size:12px;color:#bbb;line-height:1.6;">
+          <p><strong>🎯 Objective:</strong> Collect all <span style="color:#FFD700;">📦 boxes</span> and deliver them to <span style="color:#4CAF50;">📍 rack slots</span>.</p>
+          <p><strong>⌨️ Controls:</strong> Use arrow keys or D-pad. Switch robots with the dropdown.</p>
+          <p><strong>📦 Pick Up Box:</strong> Move onto a box to pick it up.</p>
+          <p><strong>📍 Deliver:</strong> Move to an empty rack slot to deliver.</p>
+          <p><strong>🏆 Scoring:</strong> +20 pickup, +50 delivery, -5 wall.</p>
+          <p><strong>🔋 Battery:</strong> Each robot has its own battery. Recharge by resting (don't move for 2s).</p>
+          <p><strong>✅ Win:</strong> Deliver all 20 boxes to win!</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 Status</div>
+        <div class="metrics">
+          <div class="metric"><div class="num" id="gameDelivered">0/20</div><div class="lbl">📦 Delivered</div></div>
+          <div class="metric"><div class="num" id="gameSteps">0</div><div class="lbl">👣 Steps</div></div>
+          <div class="metric"><div class="num" id="gameCarrying">❌</div><div class="lbl">🎒 Carrying</div></div>
+          <div class="metric"><div class="num" id="gameBattery">100%</div><div class="lbl">🔋 Battery</div></div>
+          <div class="metric"><div class="num" id="gameScore">0</div><div class="lbl">🏆 Score</div></div>
+        </div>
+      </div>
+      <button class="btn btn-danger btn-block" onclick="resetGame()">🔄 Reset Game</button>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+// ============================================================
+//  WAREHOUSE MAP GENERATOR — 50×50 with 20 boxes
+// ============================================================
+const GRID_SIZE = 50;
+const TILE = 12;
+const NUM_ROBOTS = 5;
+const NUM_BOXES = 20;
+const NUM_RACKS = 25;
+
+// Seeded random for reproducibility
+let _seed = 12345;
+function seededRand() {
+  _seed = (_seed * 16807) % 2147483647;
+  return (_seed - 1) / 2147483646;
+}
+function resetSeed() { _seed = 12345; }
+
+function generateGrid(size, numBoxes, numRacks) {
+  resetSeed();
+  let grid = [];
+  for (let x = 0; x < size; x++) {
+    grid[x] = [];
+    for (let y = 0; y < size; y++) {
+      grid[x][y] = 0;
+    }
+  }
+
+  // Place obstacles (walls) — ~15% density with clusters
+  let wallCount = Math.floor(size * size * 0.15);
+  let placed = 0;
+  while (placed < wallCount) {
+    let x = Math.floor(seededRand() * size);
+    let y = Math.floor(seededRand() * size);
+    if (x === 0 && y === 0) continue; // keep start clear
+    if (grid[x][y] !== 0) continue;
+    grid[x][y] = 1;
+    placed++;
+    // Add small cluster around
+    for (let d = 0; d < 3; d++) {
+      let cx = x + Math.floor(seededRand() * 3) - 1;
+      let cy = y + Math.floor(seededRand() * 3) - 1;
+      if (cx >= 0 && cx < size && cy >= 0 && cy < size && grid[cx][cy] === 0 && placed < wallCount) {
+        if (cx === 0 && cy === 0) continue;
+        grid[cx][cy] = 1;
+        placed++;
+      }
+    }
+  }
+
+  // Place rack slots (value 2) — ensure they're reachable from start
+  let racksPlaced = 0;
+  while (racksPlaced < numRacks) {
+    let x = Math.floor(seededRand() * size);
+    let y = Math.floor(seededRand() * size);
+    if (grid[x][y] !== 0) continue;
+    if (x === 0 && y === 0) continue;
+    grid[x][y] = 2;
+    racksPlaced++;
+  }
+
+  // Place boxes (value 3)
+  let boxesPlaced = 0;
+  while (boxesPlaced < numBoxes) {
+    let x = Math.floor(seededRand() * size);
+    let y = Math.floor(seededRand() * size);
+    if (grid[x][y] !== 0) continue;
+    if (x === 0 && y === 0) continue;
+    grid[x][y] = 3;
+    boxesPlaced++;
+  }
+
+  return grid;
+}
+
+const RAW_GRID = generateGrid(GRID_SIZE, NUM_BOXES, NUM_RACKS);
+
+// ============================================================
+//  ENVIRONMENT (port of env.py)
+// ============================================================
+class GridWorld {
+  constructor(grid) {
+    this.grid = grid.map(r => [...r]);
+    this.size = grid.length;
+    this.start = [0, 0];
+    this.goal = [this.size - 1, this.size - 1];
+    this.rack_slots = new Set();
+    this.boxes = new Set();
+    for (let x = 0; x < this.size; x++) {
+      for (let y = 0; y < this.size; y++) {
+        if (grid[x][y] === 2) this.rack_slots.add(x + ',' + y);
+        else if (grid[x][y] === 3) this.boxes.add(x + ',' + y);
+      }
+    }
+    this.collected_boxes = new Set();
+    this.filled_slots = new Set();
+    this.carrying_box = false;
+  }
+
+  is_valid(pos) {
+    let [x, y] = pos;
+    if (x < 0 || y < 0 || x >= this.size || y >= this.size) return false;
+    if (this.grid[x][y] === 1) return false;
+    return true;
+  }
+
+  get_available_boxes() {
+    let result = [];
+    for (let b of this.boxes) {
+      if (!this.collected_boxes.has(b)) result.push(b.split(',').map(Number));
+    }
+    return result;
+  }
+
+  get_empty_slots() {
+    let result = [];
+    for (let s of this.rack_slots) {
+      if (!this.filled_slots.has(s)) result.push(s.split(',').map(Number));
+    }
+    return result;
+  }
+
+  collect_box(pos) {
+    let key = pos[0] + ',' + pos[1];
+    if (this.boxes.has(key)) {
+      this.collected_boxes.add(key);
+      this.carrying_box = true;
+    }
+  }
+
+  fill_slot(pos) {
+    let key = pos[0] + ',' + pos[1];
+    if (this.rack_slots.has(key)) {
+      this.filled_slots.add(key);
+      this.carrying_box = false;
+    }
+  }
+
+  is_done() {
+    return this.filled_slots.size === this.boxes.size;
+  }
+
+  get_next_target(current_pos) {
+    let targets;
+    if (this.carrying_box) {
+      targets = this.get_empty_slots();
+    } else {
+      targets = this.get_available_boxes();
+    }
+    if (targets.length === 0) return null;
+    let best = targets[0];
+    let bestDist = Math.abs(best[0] - current_pos[0]) + Math.abs(best[1] - current_pos[1]);
+    for (let t of targets) {
+      let d = Math.abs(t[0] - current_pos[0]) + Math.abs(t[1] - current_pos[1]);
+      if (d < bestDist) { bestDist = d; best = t; }
+    }
+    return best;
+  }
+}
+
+function freshEnv() {
+  return new GridWorld(RAW_GRID);
+}
+
+// ============================================================
+//  PATHFINDING (port of algorithms.py)
+// ============================================================
+function astar_path(env, start, goal) {
+  function h(a, b) { return Math.abs(a[0]-b[0]) + Math.abs(a[1]-b[1]); }
+  let open = [{f: h(start, goal), g: 0, pos: start}];
+  let came = {};
+  let gScore = {};
+  gScore[start[0]+','+start[1]] = 0;
+  while (open.length) {
+    open.sort((a,b) => a.f - b.f);
+    let cur = open.shift();
+    if (cur.pos[0] === goal[0] && cur.pos[1] === goal[1]) {
+      let path = [cur.pos];
+      let key = cur.pos[0]+','+cur.pos[1];
+      while (came[key]) {
+        path.unshift(came[key]);
+        key = came[key][0]+','+came[key][1];
+      }
+      return path;
+    }
+    for (let [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      let nx = cur.pos[0] + dx, ny = cur.pos[1] + dy;
+      if (!env.is_valid([nx, ny])) continue;
+      let ng = cur.g + 1;
+      let nk = nx+','+ny;
+      if (gScore[nk] === undefined || ng < gScore[nk]) {
+        gScore[nk] = ng;
+        came[nk] = cur.pos;
+        open.push({f: ng + h([nx, ny], goal), g: ng, pos: [nx, ny]});
+      }
+    }
+  }
+  return [];
+}
+
+function dijkstra_path(env, start, goal) {
+  let pq = [{d: 0, pos: start}];
+  let dist = {}; dist[start[0]+','+start[1]] = 0;
+  let prev = {};
+  while (pq.length) {
+    pq.sort((a,b) => a.d - b.d);
+    let cur = pq.shift();
+    if (cur.pos[0] === goal[0] && cur.pos[1] === goal[1]) {
+      let path = [cur.pos];
+      let key = cur.pos[0]+','+cur.pos[1];
+      while (prev[key]) {
+        path.unshift(prev[key]);
+        key = prev[key][0]+','+prev[key][1];
+      }
+      return path;
+    }
+    for (let [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      let nx = cur.pos[0] + dx, ny = cur.pos[1] + dy;
+      if (!env.is_valid([nx, ny])) continue;
+      let nd = cur.d + 1;
+      let nk = nx+','+ny;
+      if (dist[nk] === undefined || nd < dist[nk]) {
+        dist[nk] = nd;
+        prev[nk] = cur.pos;
+        pq.push({d: nd, pos: [nx, ny]});
+      }
+    }
+  }
+  return [];
+}
+
+// Multi-robot delivery: assign boxes to robots round-robin
+function deliver_boxes_multi(env, pathfinder, maxStepsPerRobot) {
+  let robots = [];
+  for (let i = 0; i < NUM_ROBOTS; i++) {
+    robots.push({
+      pos: [0, 0],
+      path: [],
+      events: {},
+      carried: 0,
+      delivered: 0,
+      battery: 100,
+      carrying: false
+    });
+  }
+  let full_paths = robots.map(() => []);
+  let all_events = {};
+
+  let robotIdx = 0;
+  for (let iter = 0; iter < 500; iter++) {
+    let r = robots[robotIdx];
+    let target;
+    if (r.carrying) {
+      target = env.get_empty_slots();
+    } else {
+      target = env.get_available_boxes();
+    }
+    if (target.length === 0) { robotIdx = (robotIdx + 1) % NUM_ROBOTS; continue; }
+
+    // Pick nearest
+    let best = target[0];
+    let bestDist = Math.abs(best[0] - r.pos[0]) + Math.abs(best[1] - r.pos[1]);
+    for (let t of target) {
+      let d = Math.abs(t[0] - r.pos[0]) + Math.abs(t[1] - r.pos[1]);
+      if (d < bestDist) { bestDist = d; best = t; }
+    }
+
+    let path = pathfinder(env, r.pos, best);
+    if (!path.length) { robotIdx = (robotIdx + 1) % NUM_ROBOTS; continue; }
+    if (path[0][0] === r.pos[0] && path[0][1] === r.pos[1] && path.length > 1) path = path.slice(1);
+
+    // Move robot along path (take up to 10 steps per iteration for speed)
+    let steps = Math.min(path.length, 10);
+    for (let s = 0; s < steps; s++) {
+      r.pos = path[s];
+      let key = r.pos[0] + ',' + r.pos[1];
+      full_paths[robotIdx].push(r.pos);
+      r.battery = Math.max(0, r.battery - 0.5);
+    }
+
+    // Check if arrived at target
+    if (r.pos[0] === best[0] && r.pos[1] === best[1]) {
+      let tk = best[0]+','+best[1];
+      if (r.carrying) {
+        env.fill_slot(best);
+        all_events['r' + robotIdx + '_' + tk] = 'delivery';
+        r.delivered++;
+        r.carrying = false;
+        r.battery = Math.min(100, r.battery + 5); // bonus on delivery
+      } else {
+        env.collect_box(best);
+        all_events['r' + robotIdx + '_' + tk] = 'pickup';
+        r.carried++;
+        r.carrying = true;
+      }
+    }
+
+    if (env.is_done()) break;
+    robotIdx = (robotIdx + 1) % NUM_ROBOTS;
+  }
+
+  return { paths: full_paths, events: all_events, robots };
+}
+
+function deliver_boxes_astar_multi(env) {
+  return deliver_boxes_multi(env, astar_path, 400);
+}
+
+function deliver_boxes_dijkstra_multi(env) {
+  return deliver_boxes_multi(env, dijkstra_path, 400);
+}
+
+// Single robot versions for comparison
+function deliver_boxes_astar(env) {
+  let full_path = [];
+  let events = {};
+  let current_pos = env.start;
+  for (let i = 0; i < 500; i++) {
+    let target = env.get_next_target(current_pos);
+    if (!target) break;
+    let path = astar_path(env, current_pos, target);
+    if (!path.length) break;
+    if (path[0][0] === current_pos[0] && path[0][1] === current_pos[1] && path.length > 1) path = path.slice(1);
+    full_path.push(...path);
+    let tk = target[0]+','+target[1];
+    if (env.carrying_box) {
+      events[tk] = 'delivery';
+      env.fill_slot(target);
+    } else {
+      events[tk] = 'pickup';
+      env.collect_box(target);
+    }
+    current_pos = target;
+  }
+  return {path: full_path, events};
+}
+
+function deliver_boxes_dijkstra(env) {
+  let full_path = [];
+  let events = {};
+  let current_pos = env.start;
+  for (let i = 0; i < 500; i++) {
+    let target = env.get_next_target(current_pos);
+    if (!target) break;
+    let path = dijkstra_path(env, current_pos, target);
+    if (!path.length) break;
+    if (path[0][0] === current_pos[0] && path[0][1] === current_pos[1] && path.length > 1) path = path.slice(1);
+    full_path.push(...path);
+    let tk = target[0]+','+target[1];
+    if (env.carrying_box) {
+      events[tk] = 'delivery';
+      env.fill_slot(target);
+    } else {
+      events[tk] = 'pickup';
+      env.collect_box(target);
+    }
+    current_pos = target;
+  }
+  return {path: full_path, events};
+}
+
+// ============================================================
+//  Q-LEARNING
+// ============================================================
+class QAgent {
+  constructor() {
+    this.q = {};
+    this.alpha = 0.1;
+    this.gamma = 0.9;
+    this.epsilon = 1.0;
+  }
+  get(s, a) { return this.q[s+','+a] || 0; }
+  act(s) {
+    if (Math.random() < this.epsilon) return Math.floor(Math.random() * 4);
+    let vals = [0,1,2,3].map(a => this.get(s, a));
+    return vals.indexOf(Math.max(...vals));
+  }
+  update(s, a, r, ns) {
+    let best = Math.max(...[0,1,2,3].map(x => this.get(ns, x)));
+    let old = this.get(s, a);
+    this.q[s+','+a] = old + this.alpha * (r + this.gamma * best - old);
+  }
+}
+
+function encodeState(pos, carrying) {
+  return pos[0]+','+pos[1]+','+(carrying?1:0);
+}
+
+function trainQLearning(env, episodes) {
+  let actions = [[1,0],[-1,0],[0,1],[0,-1]];
+  let agent = new QAgent();
+  for (let ep = 0; ep < episodes; ep++) {
+    let epEnv = freshEnv();
+    let s = encodeState(epEnv.start, false);
+    for (let step = 0; step < 500; step++) {
+      let a = agent.act(s);
+      let [dx, dy] = actions[a];
+      let pos = s.split(',').map(Number);
+      let nx = pos[0] + dx, ny = pos[1] + dy;
+      let carrying = pos[2] === 1;
+      let r = -1;
+      if (!epEnv.is_valid([nx, ny])) { nx = pos[0]; ny = pos[1]; r = -5; }
+      if (!carrying) {
+        let boxes = epEnv.get_available_boxes();
+        if (boxes.length) {
+          let oldD = Math.min(...boxes.map(t => Math.abs(pos[0]-t[0])+Math.abs(pos[1]-t[1])));
+          let newD = Math.min(...boxes.map(t => Math.abs(nx-t[0])+Math.abs(ny-t[1])));
+          if (newD < oldD) r += 2;
+        }
+      } else {
+        let slots = epEnv.get_empty_slots();
+        if (slots.length) {
+          let oldD = Math.min(...slots.map(t => Math.abs(pos[0]-t[0])+Math.abs(pos[1]-t[1])));
+          let newD = Math.min(...slots.map(t => Math.abs(nx-t[0])+Math.abs(ny-t[1])));
+          if (newD < oldD) r += 2;
+        }
+      }
+      if (!carrying && epEnv.get_available_boxes().some(b => b[0]===nx && b[1]===ny)) {
+        epEnv.collect_box([nx, ny]); carrying = true; r = 20;
+      }
+      if (carrying && epEnv.get_empty_slots().some(s => s[0]===nx && s[1]===ny)) {
+        epEnv.fill_slot([nx, ny]); carrying = false; r = 50;
+      }
+      let ns = encodeState([nx, ny], carrying);
+      agent.update(s, a, r, ns);
+      s = ns;
+      if (epEnv.is_done()) break;
+    }
+    agent.epsilon = Math.max(0.05, agent.epsilon * 0.995);
+  }
+  return agent;
+}
+
+function runQDelivery(env, agent, maxSteps) {
+  let actions = [[1,0],[-1,0],[0,1],[0,-1]];
+  let full_path = [env.start];
+  let events = {};
+  let current_pos = env.start;
+  for (let i = 0; i < maxSteps; i++) {
+    let s = encodeState(current_pos, env.carrying_box);
+    let vals = [0,1,2,3].map(a => agent.get(s, a));
+    let a = vals.indexOf(Math.max(...vals));
+    let [dx, dy] = actions[a];
+    let nx = current_pos[0] + dx, ny = current_pos[1] + dy;
+    if (!env.is_valid([nx, ny])) { nx = current_pos[0]; ny = current_pos[1]; }
+    let nk = nx+','+ny;
+    if (!env.carrying_box && env.get_available_boxes().some(b => b[0]===nx && b[1]===ny)) {
+      events[nk] = 'pickup'; env.collect_box([nx, ny]);
+    } else if (env.carrying_box && env.get_empty_slots().some(s => s[0]===nx && s[1]===ny)) {
+      events[nk] = 'delivery'; env.fill_slot([nx, ny]);
+    }
+    current_pos = [nx, ny];
+    full_path.push(current_pos);
+    if (env.is_done()) break;
+  }
+  return {path: full_path, events};
+}
+
+function deliver_boxes_qlearning(env) {
+  let bestDelivered = -1;
+  let bestPath = [], bestEvents = {};
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let agent = trainQLearning(env, 2000);
+    let trialEnv = freshEnv();
+    let result = runQDelivery(trialEnv, agent, 800);
+    let delivered = trialEnv.filled_slots.size;
+    if (delivered > bestDelivered) {
+      bestDelivered = delivered;
+      bestPath = result.path;
+      bestEvents = result.events;
+    }
+    if (delivered === trialEnv.boxes.size) break;
+  }
+  return {path: bestPath, events: bestEvents};
+}
+
+// ============================================================
+//  RENDERER
+// ============================================================
+function generateRoadTile() {
+  let canvas = document.createElement('canvas');
+  canvas.width = TILE; canvas.height = TILE;
+  let ctx = canvas.getContext('2d');
+  let imgData = ctx.createImageData(TILE, TILE);
+  let seed = 42;
+  function rand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+  for (let i = 0; i < TILE; i++) {
+    for (let j = 0; j < TILE; j++) {
+      let idx = (i * TILE + j) * 4;
+      let base = 0.25 + rand() * 0.08;
+      let r = Math.floor(base * 0.22 / 0.29 * 255);
+      let g = Math.floor(base * 0.22 / 0.29 * 255);
+      let b = Math.floor(base * 0.24 / 0.29 * 255);
+      if (rand() > 0.92) { r *= 0.7; g *= 0.7; b *= 0.7; }
+      if (rand() > 0.96) { r = Math.min(255, r * 1.3 + 13); g = Math.min(255, g * 1.3 + 13); b = Math.min(255, b * 1.3 + 13); }
+      imgData.data[idx] = r; imgData.data[idx+1] = g; imgData.data[idx+2] = b; imgData.data[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  ctx.fillStyle = 'rgba(150,150,150,0.3)';
+  for (let j = 0; j < TILE; j += 4) {
+    ctx.fillRect(TILE/2-1, j, 2, 2);
+  }
+  return canvas;
+}
+
+function generateBrickTile() {
+  let canvas = document.createElement('canvas');
+  canvas.width = TILE; canvas.height = TILE;
+  let ctx = canvas.getContext('2d');
+  for (let i = 0; i < TILE; i++) {
+    for (let j = 0; j < TILE; j++) {
+      if (i % 6 < 2 || j % 6 < 2) ctx.fillStyle = 'rgb(210,205,195)';
+      else if ((Math.floor(i/6) + Math.floor(j/6)) % 2 === 0) ctx.fillStyle = 'rgb(190,90,65)';
+      else ctx.fillStyle = 'rgb(180,80,60)';
+      ctx.fillRect(i, j, 1, 1);
+    }
+  }
+  return canvas;
+}
+
+const ROBOT_COLORS = [
+  { body: 'rgb(70,130,210)', eye: '#fff', pupil: '#000', ant: 'rgb(200,50,50)', led: 'rgb(255,200,50)' },
+  { body: 'rgb(210,130,70)', eye: '#fff', pupil: '#000', ant: 'rgb(200,50,50)', led: 'rgb(255,200,50)' },
+  { body: 'rgb(70,180,100)', eye: '#fff', pupil: '#000', ant: 'rgb(200,50,50)', led: 'rgb(255,200,50)' },
+  { body: 'rgb(200,180,50)', eye: '#fff', pupil: '#000', ant: 'rgb(200,50,50)', led: 'rgb(255,100,50)' },
+  { body: 'rgb(160,80,200)', eye: '#fff', pupil: '#000', ant: 'rgb(200,50,50)', led: 'rgb(255,200,50)' }
+];
+
+function generateRobotSprite(colorIdx) {
+  let c = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
+  let canvas = document.createElement('canvas');
+  canvas.width = TILE; canvas.height = TILE;
+  let ctx = canvas.getContext('2d');
+  ctx.fillStyle = c.body;
+  ctx.beginPath();
+  let r = Math.min(TILE, 20) / 2;
+  let cx = TILE/2, cy = TILE/2;
+  ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+  ctx.fill();
+  // eyes
+  ctx.fillStyle = c.eye;
+  let eSize = Math.max(2, TILE/6);
+  ctx.fillRect(cx - eSize - 1, cy - eSize, eSize, eSize);
+  ctx.fillRect(cx + 1, cy - eSize, eSize, eSize);
+  ctx.fillStyle = c.pupil;
+  ctx.fillRect(cx - eSize, cy - eSize + 1, eSize-1, eSize-1);
+  ctx.fillRect(cx + 2, cy - eSize + 1, eSize-1, eSize-1);
+  // antenna
+  ctx.fillStyle = c.ant;
+  ctx.fillRect(cx - 1, 0, 3, 4);
+  ctx.fillStyle = c.led;
+  ctx.fillRect(cx, 0, 2, 2);
+  return canvas;
+}
+
+// Pre-render robot sprites
+const robotSprites = [];
+for (let i = 0; i < NUM_ROBOTS; i++) {
+  robotSprites.push(generateRobotSprite(i));
+}
+
+function generateBoxSprite() {
+  let canvas = document.createElement('canvas');
+  canvas.width = TILE; canvas.height = TILE;
+  let ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgb(190,140,70)';
+  ctx.fillRect(1, 1, TILE-2, TILE-2);
+  ctx.strokeStyle = 'rgb(140,100,50)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(1, 1, TILE-2, TILE-2);
+  ctx.fillStyle = 'rgb(210,180,120)';
+  ctx.fillRect(Math.floor(TILE/2)-2, 1, 4, TILE-2);
+  ctx.fillRect(1, Math.floor(TILE/2)-2, TILE-2, 4);
+  return canvas;
+}
+
+// Pre-render tiles
+const roadTile = generateRoadTile();
+const brickTile = generateBrickTile();
+const boxSprite = generateBoxSprite();
+
+function renderToCanvas(canvas, env, robotPositions, pathSoFar, eventsSoFar, title) {
+  let ctx = canvas.getContext('2d');
+  let w = env.size * TILE, h = env.size * TILE;
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  ctx.clearRect(0, 0, w, h);
+
+  // Background
+  for (let x = 0; x < env.size; x++) {
+    for (let y = 0; y < env.size; y++) {
+      let val = env.grid[x][y];
+      if (val === 1) {
+        ctx.drawImage(brickTile, y * TILE, x * TILE);
+      } else {
+        ctx.drawImage(roadTile, y * TILE, x * TILE);
+      }
+    }
+  }
+
+  // Rack slots
+  for (let sk of env.rack_slots) {
+    let [x, y] = sk.split(',').map(Number);
+    if (env.filled_slots.has(sk)) {
+      ctx.fillStyle = 'rgba(50,150,50,0.7)';
+    } else {
+      ctx.fillStyle = 'rgba(200,130,50,0.7)';
+    }
+    ctx.fillRect(y * TILE, x * TILE, TILE, TILE);
+  }
+
+  // Start marker
+  ctx.fillStyle = 'rgba(25,180,180,0.5)';
+  ctx.fillRect(env.start[1] * TILE, env.start[0] * TILE, TILE, TILE);
+
+  // Goal marker
+  ctx.fillStyle = 'rgba(230,50,180,0.5)';
+  ctx.fillRect(env.goal[1] * TILE, env.goal[0] * TILE, TILE, TILE);
+
+  // Path overlay
+  if (pathSoFar && pathSoFar.length > 1) {
+    ctx.strokeStyle = 'rgba(180,100,230,0.4)';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    let half = TILE / 2;
+    for (let i = 0; i < pathSoFar.length; i++) {
+      let px = pathSoFar[i][1] * TILE + half;
+      let py = pathSoFar[i][0] * TILE + half;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  // Events
+  if (eventsSoFar) {
+    for (let [key, kind] of Object.entries(eventsSoFar)) {
+      let parts = key.split('_');
+      let posKey = parts.length > 1 ? parts[1] : key;
+      let [x, y] = posKey.split(',').map(Number);
+      if (kind === 'pickup') {
+        ctx.fillStyle = 'rgba(255,200,0,0.4)';
+      } else {
+        ctx.fillStyle = 'rgba(0,255,0,0.4)';
+      }
+      ctx.fillRect(y * TILE, x * TILE, TILE, TILE);
+    }
+  }
+
+  // Boxes
+  for (let bk of env.boxes) {
+    if (env.collected_boxes.has(bk)) continue;
+    let [x, y] = bk.split(',').map(Number);
+    ctx.drawImage(boxSprite, y * TILE, x * TILE);
+  }
+
+  // Robots
+  if (robotPositions) {
+    if (Array.isArray(robotPositions) && robotPositions.length > 0 && Array.isArray(robotPositions[0])) {
+      // Multiple robots
+      for (let ri = 0; ri < Math.min(robotPositions.length, NUM_ROBOTS); ri++) {
+        let pos = robotPositions[ri];
+        if (pos) {
+          ctx.drawImage(robotSprites[ri], pos[1] * TILE, pos[0] * TILE);
+        }
+      }
+    } else if (Array.isArray(robotPositions)) {
+      // Single robot
+      ctx.drawImage(robotSprites[0], robotPositions[1] * TILE, robotPositions[0] * TILE);
+    }
+  }
+}
+
+// ============================================================
+//  TAB SWITCHING
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.tab-btn[onclick*="${name}"]`).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'compare') drawPreview();
+  if (name === 'game') renderGame();
+  if (name === 'sim') renderSimIdle();
+}
+
+// ============================================================
+//  SIDEBAR — 5 AGVs
+// ============================================================
+function toggleSidebar() {
+  let sb = document.getElementById('sidebar');
+  let mc = document.getElementById('mainContent');
+  sb.classList.toggle('open');
+  mc.classList.toggle('shifted');
+}
+
+const AGV_COLORS = ['#4FC3F7', '#FF8A65', '#81C784', '#FFD54F', '#CE93D8'];
+const AGV_NAMES = ['AGV-1', 'AGV-2', 'AGV-3', 'AGV-4', 'AGV-5'];
+
+function updateAGVStatus(robotId, pos, status, battery, delivered, total) {
+  // Update individual AGV card
+  let id = robotId - 1; // 0-indexed
+  if (id < 0 || id >= NUM_ROBOTS) id = 0;
+
+  let card = document.getElementById('agvCard_' + id);
+  if (!card) {
+    renderSidebar();
+    card = document.getElementById('agvCard_' + id);
+  }
+
+  let statusEl = card.querySelector('.agv-status');
+  let posEl = card.querySelector('.agv-pos');
+  let battFill = card.querySelector('.agv-battery-fill');
+  let battText = card.querySelector('.agv-battery-text');
+  let delText = card.querySelector('.agv-delivered-text');
+
+  if (statusEl) statusEl.textContent = status;
+  if (posEl) posEl.textContent = '📍 (' + pos[0] + ', ' + pos[1] + ')';
+  if (battFill) {
+    let pct = Math.max(0, Math.min(100, battery));
+    battFill.style.width = pct + '%';
+    if (pct > 60) battFill.style.background = '#4CAF50';
+    else if (pct > 30) battFill.style.background = '#FF9800';
+    else battFill.style.background = '#f44336';
+  }
+  if (battText) battText.textContent = Math.round(Math.max(0, battery)) + '%';
+  if (delText) delText.textContent = '📦 ' + delivered + '/' + total;
+}
+
+function renderSidebar() {
+  let container = document.getElementById('agvStatusList');
+  let html = '';
+  for (let i = 0; i < NUM_ROBOTS; i++) {
+    let c = AGV_COLORS[i];
+    let name = AGV_NAMES[i];
+    html += `
+      <div class="agv-card" id="agvCard_${i}">
+        <div class="agv-name" style="color:${c};">🤖 ${name}</div>
+        <div class="agv-status" id="agvStatus_${i}">⏸️ IDLE</div>
+        <div class="agv-pos" id="agvPos_${i}">📍 (0, 0)</div>
+        <div class="agv-battery-bar"><div class="agv-battery-fill" id="agvBattFill_${i}" style="width:100%;background:#4CAF50;"></div></div>
+        <div style="display:flex;justify-content:space-between;">
+          <span class="agv-battery-text" id="agvBattText_${i}">100%</span>
+          <span class="agv-delivered-text" id="agvDelText_${i}">📦 0/20</span>
+        </div>
+      </div>`;
+  }
+  container.innerHTML = html;
+}
+
+// Bulk update all AGVs
+function updateAllAGVs(robots, totalBoxes) {
+  for (let i = 0; i < NUM_ROBOTS; i++) {
+    let r = robots[i];
+    if (r) {
+      let status = r.carrying ? '📦 CARRYING' : '🚶 MOVING';
+      if (r.delivered === totalBoxes) status = '✅ COMPLETED';
+      updateAGVStatus(i + 1, r.pos || [0, 0], status, r.battery || 100, r.delivered || 0, totalBoxes);
+    } else {
+      updateAGVStatus(i + 1, [0, 0], '⏸️ IDLE', 100, 0, totalBoxes);
+    }
+  }
+}
+
+// ============================================================
+//  DECISION LOGS
+// ============================================================
+function getDecisionLogs(mode) {
+  if (mode === 'astar') {
+    return [
+      "A* pathfinding: heuristic (Manhattan distance) guides search toward goal",
+      "Priority queue ordered by f(n) = g(n) + h(n) — balances cost & estimate",
+      "Admissible heuristic guarantees optimal path under uniform edge weights",
+      "Target selection: nearest box/slot by Manhattan distance",
+      "5 robots cooperate — round-robin task assignment",
+      "50×50 grid with ~375 obstacles, 20 boxes, 25 rack slots"
+    ];
+  } else if (mode === 'dijkstra') {
+    return [
+      "Dijkstra pathfinding: no heuristic — explores uniformly outward",
+      "All reachable nodes evaluated by shortest distance from start (g-cost only)",
+      "Guarantees shortest path but explores more nodes than A* in open terrain",
+      "Exploration radius grows uniformly in all 4 directions",
+      "5 robots cooperate — round-robin task assignment",
+      "50×50 grid: more nodes to explore, Dijkstra may be slower"
+    ];
+  } else {
+    return [
+      "Q-Learning: training agent with reward-based learning (2000 episodes)",
+      "State encoded as (x, y, carrying_flag) — actions: {↑, ↓, ←, →}",
+      "Shaped rewards: +50 delivery, +20 pickup, -1 step penalty, -5 wall collision",
+      "Epsilon-greedy exploration decays from 1.0 → 0.05 over training",
+      "Policy converges via Bellman updates — 3 best-of-N attempts at inference",
+      "Larger 50×50 state space makes Q-Learning more challenging"
+    ];
+  }
+}
+
+function updateDecisionLog(mode) {
+  let logs = getDecisionLogs(mode);
+  document.getElementById('decisionLog').innerHTML = logs.map(l => '<div class="log-entry">' + l + '</div>').join('');
+}
+
+document.getElementById('algoSelect').addEventListener('change', function() {
+  updateDecisionLog(this.value);
+});
+updateDecisionLog('astar');
+
+// ============================================================
+//  TAB 1: SIMULATION — 5 Robots
+// ============================================================
+let simRunning = false;
+let simAbort = false;
+
+function renderSimIdle() {
+  let env = freshEnv();
+  document.getElementById('simTitle').textContent = '🏁 Ready — 50×50';
+  let robots = [];
+  for (let i = 0; i < NUM_ROBOTS; i++) robots.push([0, 0]);
+  renderToCanvas(document.getElementById('simCanvas'), env, robots, [], {});
+  document.getElementById('simRobotCount').textContent = NUM_ROBOTS;
+  document.getElementById('simBoxCount').textContent = env.boxes.size;
+  let obsCount = 0;
+  for (let x = 0; x < env.size; x++)
+    for (let y = 0; y < env.size; y++)
+      if (env.grid[x][y] === 1) obsCount++;
+  document.getElementById('simObsCount').textContent = obsCount;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function runSimulation() {
+  if (simRunning) return;
+  simRunning = true;
+  simAbort = false;
+  let btn = document.getElementById('simRunBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running...';
+
+  let mode = document.getElementById('algoSelect').value;
+  let statusEl = document.getElementById('simStatus');
+  let progressFill = document.getElementById('simProgressFill');
+  let canvas = document.getElementById('simCanvas');
+
+  statusEl.className = 'msg msg-info';
+  statusEl.innerHTML = '⏳ Computing multi-robot paths...';
+
+  let env = freshEnv();
+  let result;
+  let t0 = performance.now();
+
+  if (mode === 'astar') {
+    result = deliver_boxes_astar_multi(env);
+  } else if (mode === 'dijkstra') {
+    result = deliver_boxes_dijkstra_multi(env);
+  } else {
+    // Q-Learning — use single robot (multi-robot QL is complex)
+    statusEl.innerHTML = '⏳ Training Q-Learning (attempt 1/3)...';
+    let bestDelivered = -1;
+    let bestPath = [], bestEvents = {};
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (simAbort) break;
+      statusEl.innerHTML = '⏳ Training Q-Learning (attempt ' + (attempt+1) + '/3)...';
+      let agent = trainQLearning(env, 2000);
+      let trialEnv = freshEnv();
+      let r = runQDelivery(trialEnv, agent, 800);
+      let delivered = trialEnv.filled_slots.size;
+      if (delivered > bestDelivered) {
+        bestDelivered = delivered;
+        bestPath = r.path;
+        bestEvents = r.events;
+      }
+      if (delivered === trialEnv.boxes.size) break;
+      progressFill.style.width = ((attempt+1)/3*100) + '%';
+      await sleep(10);
+    }
+    // For QL, wrap as single robot result
+    result = {
+      paths: [bestPath, [], [], [], []],
+      events: bestEvents,
+      robots: [{pos:[0,0],carrying:false,delivered:bestDelivered,battery:100}]
+    };
+  }
+
+  let t1 = performance.now();
+  if (simAbort) { simRunning = false; btn.disabled = false; btn.textContent = '▶️ RUN'; return; }
+
+  let totalDelivered = 0;
+  for (let r of result.robots) totalDelivered += r.delivered || 0;
+  // Actually compute from env
+  let animEnv = freshEnv();
+  // Replay events to count
+  let replayEnv = freshEnv();
+  for (let [key, kind] of Object.entries(result.events)) {
+    let parts = key.split('_');
+    let posKey = parts.length > 1 ? parts[1] : key;
+    let pos = posKey.split(',').map(Number);
+    if (kind === 'pickup') replayEnv.collect_box(pos);
+    else replayEnv.fill_slot(pos);
+  }
+
+  statusEl.className = 'msg msg-info';
+  statusEl.innerHTML = '📦 <strong>Paths computed</strong> in ' + (t1-t0).toFixed(0) + 'ms. ' + replayEnv.filled_slots.size + ' / ' + replayEnv.boxes.size + ' boxes delivered. Animating...';
+
+  // Animate
+  let animReplay = freshEnv();
+  let appliedEvents = {};
+  let maxLen = Math.max(...result.paths.map(p => p.length));
+  let allRobotsPos = result.paths.map(p => p.length > 0 ? p[0] : [0, 0]);
+
+  for (let stepIdx = 0; stepIdx < maxLen; stepIdx++) {
+    if (simAbort) break;
+
+    // Update each robot position
+    for (let ri = 0; ri < NUM_ROBOTS; ri++) {
+      let p = result.paths[ri];
+      if (stepIdx < p.length) {
+        allRobotsPos[ri] = p[stepIdx];
+        let key = 'r' + ri + '_' + p[stepIdx][0] + ',' + p[stepIdx][1];
+        if (result.events[key] && !appliedEvents[key]) {
+          appliedEvents[key] = result.events[key];
+          if (result.events[key] === 'pickup') {
+            animReplay.collect_box(p[stepIdx]);
+          } else {
+            animReplay.fill_slot(p[stepIdx]);
+          }
+        }
+      }
+    }
+
+    let title = 'Step ' + (stepIdx+1) + ' / ' + maxLen + ' | Delivered: ' + animReplay.filled_slots.size + '/' + animReplay.boxes.size;
+    document.getElementById('simTitle').textContent = title;
+    renderToCanvas(canvas, animReplay, allRobotsPos, null, appliedEvents);
+    progressFill.style.width = ((stepIdx+1)/maxLen*100) + '%';
+
+    // Update sidebar
+    for (let ri = 0; ri < NUM_ROBOTS; ri++) {
+      let r = result.robots[ri] || { carrying: false, delivered: 0, battery: 100, pos: [0, 0] };
+      let battery = Math.max(5, 100 - stepIdx * 0.3);
+      let curStatus = '🚶 MOVING';
+      if (animReplay.is_done()) curStatus = '✅ COMPLETED';
+      else if (r.carrying) curStatus = '📦 CARRYING';
+
+      // Check if this robot just picked up or delivered
+      let p = result.paths[ri];
+      if (stepIdx < p.length) {
+        let key = 'r' + ri + '_' + p[stepIdx][0] + ',' + p[stepIdx][1];
+        if (appliedEvents[key] === 'pickup') curStatus = '🎯 PICKING';
+        else if (appliedEvents[key] === 'delivery') curStatus = '📦 DELIVERING';
+      }
+
+      updateAGVStatus(ri + 1, allRobotsPos[ri] || [0, 0], curStatus, battery, animReplay.filled_slots.size, animReplay.boxes.size);
+    }
+
+    await sleep(40);
+  }
+
+  progressFill.style.width = '0%';
+  if (!simAbort) {
+    statusEl.className = 'msg msg-success';
+    statusEl.innerHTML = '🎉 Simulation complete! ' + animReplay.filled_slots.size + '/' + animReplay.boxes.size + ' boxes delivered.';
+    document.getElementById('simTitle').textContent = '🏁 Finish';
+    renderToCanvas(canvas, animReplay, allRobotsPos, null, result.events);
+  }
+
+  // Final sidebar update
+  for (let ri = 0; ri < NUM_ROBOTS; ri++) {
+    let r = result.robots[ri] || { carrying: false, delivered: 0, battery: 100, pos: [0, 0] };
+    updateAGVStatus(ri + 1, allRobotsPos[ri] || [0, 0], animReplay.is_done() ? '✅ COMPLETED' : '⏸️ IDLE', r.battery || 100, animReplay.filled_slots.size, animReplay.boxes.size);
+  }
+
+  simRunning = false;
+  btn.disabled = false;
+  btn.textContent = '▶️ RUN';
+}
+
+// ============================================================
+//  TAB 2: COMPARISON DASHBOARD
+// ============================================================
+function drawPreview() {
+  let env = freshEnv();
+  document.getElementById('previewTitle').textContent = 'Warehouse Layout (' + GRID_SIZE + '×' + GRID_SIZE + ')';
+  renderToCanvas(document.getElementById('previewCanvas'), env, [env.start], [], {});
+}
+
+function runComparison() {
+  let btn = document.getElementById('compareRunBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running...';
+
+  setTimeout(async () => {
+    let results = {};
+
+    // A*
+    let envA = freshEnv();
+    let t0 = performance.now();
+    let rA = deliver_boxes_astar(envA);
+    let t1 = performance.now();
+    results['A*'] = {
+      path: rA.path, events: rA.events, env: envA,
+      pathLen: rA.path.length,
+      delivered: envA.filled_slots.size + '/' + envA.boxes.size,
+      deliveredPct: envA.boxes.size ? (envA.filled_slots.size / envA.boxes.size * 100) : 0,
+      time: (t1 - t0) / 1000
+    };
+
+    // Dijkstra
+    let envD = freshEnv();
+    t0 = performance.now();
+    let rD = deliver_boxes_dijkstra(envD);
+    t1 = performance.now();
+    results['Dijkstra'] = {
+      path: rD.path, events: rD.events, env: envD,
+      pathLen: rD.path.length,
+      delivered: envD.filled_slots.size + '/' + envD.boxes.size,
+      deliveredPct: envD.boxes.size ? (envD.filled_slots.size / envD.boxes.size * 100) : 0,
+      time: (t1 - t0) / 1000
+    };
+
+    // Q-Learning
+    let envQ = freshEnv();
+    t0 = performance.now();
+    let rQ = deliver_boxes_qlearning(envQ);
+    t1 = performance.now();
+    let qDelivered = Object.values(rQ.events).filter(v => v === 'delivery').length;
+    results['Q-Learning'] = {
+      path: rQ.path, events: rQ.events, env: envQ,
+      pathLen: rQ.path.length,
+      delivered: qDelivered + '/' + envQ.boxes.size,
+      deliveredPct: envQ.boxes.size ? (qDelivered / envQ.boxes.size * 100) : 0,
+      time: (t1 - t0) / 1000
+    };
+
+    document.getElementById('compareIdle').style.display = 'none';
+    document.getElementById('compareResults').style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '🚀 Run All Algorithms';
+
+    renderComparisonResults(results);
+  }, 50);
+}
+
+function renderComparisonResults(results) {
+  const colors = {'A*': '#FF6B35', 'Dijkstra': '#004E89', 'Q-Learning': '#1A936F'};
+
+  // Metric cards
+  let cardsHtml = '';
+  for (let [name, r] of Object.entries(results)) {
+    cardsHtml += `
+      <div class="compare-card" style="background:${colors[name]}15;border:2px solid ${colors[name]};">
+        <h3 style="color:${colors[name]};">${name}</h3>
+        <div class="compare-metrics">
+          <div><div class="cm">${r.pathLen}</div><div class="cl">Path Steps</div></div>
+          <div><div class="cm">${r.delivered}</div><div class="cl">Delivered</div></div>
+          <div><div class="cm">${r.deliveredPct.toFixed(1)}%</div><div class="cl">Success Rate</div></div>
+          <div><div class="cm">${r.time.toFixed(3)}s</div><div class="cl">Compute Time</div></div>
+        </div>
+      </div>`;
+  }
+  document.getElementById('metricCards').innerHTML = cardsHtml;
+
+  // Path comparison canvases
+  let pathsHtml = '';
+  for (let [name, r] of Object.entries(results)) {
+    let replayEnv = freshEnv();
+    for (let [key, kind] of Object.entries(r.events)) {
+      let pos = key.split(',').map(Number);
+      if (isNaN(pos[0])) continue;
+      if (kind === 'pickup') replayEnv.collect_box(pos);
+      else replayEnv.fill_slot(pos);
+    }
+    let finalPos = r.path.length ? r.path[r.path.length-1] : replayEnv.start;
+    let cid = 'pathCanvas_' + name.replace('*', 'star');
+    pathsHtml += `<div style="text-align:center;overflow:hidden;"><canvas id="${cid}" width="360" height="360"></canvas><div style="font-size:12px;color:${colors[name]};font-weight:600;margin-top:4px;">${name} — ${r.pathLen} steps · ${r.delivered}</div></div>`;
+    setTimeout(() => {
+      let c = document.getElementById(cid);
+      if (c) {
+        c.width = 360; c.height = 360;
+        // Use a special render with smaller effective tile for display
+        let ctx = c.getContext('2d');
+        let scale = 360 / (GRID_SIZE * TILE);
+        ctx.scale(scale, scale);
+        // We need to re-scale; simpler: just use renderToCanvas and adjust
+        renderToCanvas(c, replayEnv, finalPos, r.path, r.events);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+    }, 100);
+  }
+  document.getElementById('pathComparison').innerHTML = pathsHtml;
+
+  // Bar charts
+  let names = Object.keys(results);
+  let pathLens = names.map(n => results[n].pathLen);
+  let times = names.map(n => results[n].time);
+  let deliveries = names.map(n => results[n].deliveredPct);
+  let barColors = names.map(n => colors[n]);
+
+  let barHtml = `
+    <div class="chart-box">
+      <h4>Total Path Length</h4>
+      <canvas id="barPathChart" width="300" height="200"></canvas>
+    </div>
+    <div class="chart-box">
+      <h4>Computation Time</h4>
+      <canvas id="barTimeChart" width="300" height="200"></canvas>
+    </div>
+    <div class="chart-box">
+      <h4>Delivery Success Rate</h4>
+      <canvas id="barDeliveryChart" width="300" height="200"></canvas>
+    </div>`;
+  document.getElementById('barCharts').innerHTML = barHtml;
+
+  setTimeout(() => {
+    drawBarChart('barPathChart', names, pathLens, barColors, 'Path Steps', '#fff');
+    drawBarChart('barTimeChart', names, times, barColors, 'Time (s)', '#fff');
+    drawBarChart('barDeliveryChart', names, deliveries, barColors, 'Success %', '#fff');
+  }, 100);
+
+  // Radar chart
+  setTimeout(() => drawRadarChart(names, results, colors), 200);
+
+  // Deep dive tabs
+  let diveHtml = '';
+  names.forEach((n, i) => {
+    diveHtml += `<button class="dive-btn ${i===0?'active':''}" onclick="showDive('${n}')">${n === 'A*' ? '⭐' : n === 'Dijkstra' ? '🌐' : '🧠'} ${n}</button>`;
+  });
+  document.getElementById('diveTabs').innerHTML = diveHtml;
+
+  let diveContentHtml = '';
+  for (let [name, r] of Object.entries(results)) {
+    let pros, cons, traces;
+    if (name === 'A*') {
+      pros = ['Optimal path guaranteed with admissible heuristic','Manhattan distance guides search efficiently','Fast computation — explores fewer nodes','Priority queue orders by f(n) = g(n) + h(n)'];
+      cons = ['Heuristic must be admissible for optimality','Performance depends on heuristic quality'];
+      traces = getDecisionLogs('astar');
+    } else if (name === 'Dijkstra') {
+      pros = ['Optimal path guaranteed (no heuristic needed)','Explores uniformly — works in any terrain','Simple and predictable behavior'];
+      cons = ['Explores more nodes than A* in open terrain','Slower on large maps with few obstacles','No directional guidance'];
+      traces = getDecisionLogs('dijkstra');
+    } else {
+      pros = ['Learns from experience — no map knowledge','Adapts to dynamic environments','Discovers strategies beyond shortest-path'];
+      cons = ['Requires many training episodes','May not find optimal path','Significantly slower','Stochastic results'];
+      traces = getDecisionLogs('qlearning');
+    }
+    diveContentHtml += `<div class="dive-content ${name === 'A*' ? 'active' : ''}" id="dive-${name}">
+      <div class="row">
+        <div class="col-1">
+          <div style="background:${colors[name]}10;border-radius:10px;padding:16px;border-left:4px solid ${colors[name]};">
+            <h4 style="color:${colors[name]};margin-bottom:12px;">Key Metrics</h4>
+            <div class="metric"><div class="num">${r.pathLen}</div><div class="lbl">Path Steps</div></div>
+            <div class="metric"><div class="num">${r.delivered}</div><div class="lbl">Delivered</div></div>
+            <div class="metric"><div class="num">${r.time.toFixed(3)}s</div><div class="lbl">Compute Time</div></div>
+            <div class="metric"><div class="num">${r.deliveredPct.toFixed(1)}%</div><div class="lbl">Success Rate</div></div>
+          </div>
+        </div>
+        <div class="col-1">
+          <h4>✅ Pros</h4>${pros.map(p => '<div class="log-entry">' + p + '</div>').join('')}
+          <h4 style="margin-top:8px;">⚠️ Cons</h4>${cons.map(c => '<div class="log-entry">' + c + '</div>').join('')}
+          <h4 style="margin-top:8px;">📋 Decision Trace</h4>${traces.map(t => '<div class="log-entry">' + t + '</div>').join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+  document.getElementById('diveContent').innerHTML = diveContentHtml;
+
+  // Winner
+  let sorted = Object.entries(results).sort((a, b) => {
+    if (b[1].deliveredPct !== a[1].deliveredPct) return b[1].deliveredPct - a[1].deliveredPct;
+    return a[1].pathLen - b[1].pathLen;
+  });
+  let winner = sorted[0];
+  document.getElementById('winnerSection').innerHTML = `
+    <div class="winner-banner" style="border-color:${colors[winner[0]]};background:${colors[winner[0]]}22;">
+      <div style="font-size:48px;">🏆</div>
+      <h2 style="color:${colors[winner[0]]};">${winner[0]}</h2>
+      <div style="color:#888;">Best Overall Performer on 50×50</div>
+      <div style="margin-top:8px;font-size:18px;font-weight:700;">${winner[1].pathLen} steps</div>
+      <div style="color:#888;font-size:13px;">${winner[1].delivered} delivered in ${winner[1].time.toFixed(3)}s</div>
+    </div>
+    <div style="margin-top:12px;">
+      <h4>When to use each algorithm:</h4>
+      <div class="log-entry"><strong>A*</strong> — Best for static maps with clear goals. Use when you need the shortest path fast.</div>
+      <div class="log-entry"><strong>Dijkstra</strong> — Best for uniform exploration. Use when you need guaranteed shortest paths without designing a heuristic.</div>
+      <div class="log-entry"><strong>Q-Learning</strong> — Best for dynamic/unknown environments. Use when the environment changes over time.</div>
+    </div>`;
+}
+
+function showDive(name) {
+  document.querySelectorAll('.dive-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.dive-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.dive-btn[onclick*="${name}"]`).classList.add('active');
+  document.getElementById('dive-' + name).classList.add('active');
+}
+
+function drawBarChart(canvasId, labels, values, colors, yLabel, textColor) {
+  let canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  let ctx = canvas.getContext('2d');
+  let w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  let maxVal = Math.max(...values) * 1.15 || 1;
+  let pad = {top: 20, bottom: 30, left: 10, right: 10};
+  let chartW = w - pad.left - pad.right;
+  let chartH = h - pad.top - pad.bottom;
+  let barW = chartW / labels.length * 0.6;
+  let gap = chartW / labels.length;
+
+  for (let i = 0; i < labels.length; i++) {
+    let x = pad.left + i * gap + (gap - barW) / 2;
+    let barH = (values[i] / maxVal) * chartH;
+    let y = pad.top + chartH - barH;
+
+    ctx.fillStyle = colors[i];
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+    ctx.fill();
+
+    ctx.fillStyle = textColor || '#fff';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(values[i] % 1 === 0 ? values[i] : values[i].toFixed(1) + (yLabel.includes('%') ? '%' : yLabel.includes('s') ? 's' : ''), x + barW/2, y - 4);
+
+    ctx.fillStyle = '#aaa';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(labels[i].replace('*', '*'), x + barW/2, pad.top + chartH + 16);
+  }
+}
+
+function drawRadarChart(names, results, colors) {
+  let canvas = document.getElementById('radarChart');
+  if (!canvas) return;
+  let ctx = canvas.getContext('2d');
+  let w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  let cx = w/2, cy = h/2, r = Math.min(w, h) * 0.35;
+
+  let pathLens = names.map(n => results[n].pathLen);
+  let times = names.map(n => results[n].time);
+  let deliveries = names.map(n => results[n].deliveredPct);
+
+  let maxPath = Math.max(...pathLens), minPath = Math.min(...pathLens);
+  let maxTime = Math.max(...times), minTime = Math.min(...times);
+
+  let pathScores = pathLens.map(p => maxPath !== minPath ? 100 * (1 - (p - minPath) / (maxPath - minPath)) : 100);
+  let timeScores = times.map(t => maxTime !== minTime ? 100 * (1 - (t - minTime) / (maxTime - minTime)) : 100);
+  let deliveryScores = deliveries;
+
+  let categories = ['Path Efficiency', 'Speed', 'Delivery Rate'];
+  let N = categories.length;
+  let angleStep = (2 * Math.PI) / N;
+
+  for (let level = 1; level <= 5; level++) {
+    let lr = r * level / 5;
+    ctx.beginPath();
+    for (let i = 0; i <= N; i++) {
+      let angle = -Math.PI/2 + i * angleStep;
+      let x = cx + lr * Math.cos(angle);
+      let y = cy + lr * Math.sin(angle);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.stroke();
+  }
+
+  for (let i = 0; i < N; i++) {
+    let angle = -Math.PI/2 + i * angleStep;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.stroke();
+    let lx = cx + (r + 20) * Math.cos(angle);
+    let ly = cy + (r + 20) * Math.sin(angle);
+    ctx.fillStyle = '#aaa'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(categories[i], lx, ly + 4);
+  }
+
+  for (let idx = 0; idx < names.length; idx++) {
+    let values = [pathScores[idx], timeScores[idx], deliveryScores[idx]];
+    ctx.beginPath();
+    for (let i = 0; i <= N; i++) {
+      let angle = -Math.PI/2 + (i % N) * angleStep;
+      let val = values[i % N] / 100 * r;
+      let x = cx + val * Math.cos(angle);
+      let y = cy + val * Math.sin(angle);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = colors[names[idx]]; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = colors[names[idx]] + '20'; ctx.fill();
+  }
+
+  let ly = h - 20;
+  let lx = cx - 80;
+  for (let idx = 0; idx < names.length; idx++) {
+    ctx.fillStyle = colors[names[idx]]; ctx.fillRect(lx + idx * 100, ly - 8, 12, 12);
+    ctx.fillStyle = '#fff'; ctx.font = '11px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(names[idx].replace('*', '*'), lx + idx * 100 + 16, ly + 3);
+  }
+}
+
+// ============================================================
+//  TAB 3: MANUAL GAME — 5 Robots
+// ============================================================
+let gameState = {
+  env: null,
+  robots: [],
+  activeRobot: 0,
+  path: [[0, 0]],
+  events: {},
+  steps: 0,
+  score: 0,
+  over: false,
+  balloonsShown: false,
+  started: false
+};
+
+function resetGame() {
+  gameState.env = freshEnv();
+  gameState.robots = [];
+  for (let i = 0; i < NUM_ROBOTS; i++) {
+    gameState.robots.push({
+      pos: [0, 0],
+      battery: 100,
+      carrying: false,
+      delivered: 0
+    });
+  }
+  gameState.activeRobot = 0;
+  gameState.path = [[0, 0]];
+  gameState.events = {};
+  gameState.steps = 0;
+  gameState.score = 0;
+  gameState.over = false;
+  gameState.balloonsShown = false;
+  gameState.started = false;
+  document.getElementById('btnUp').disabled = true;
+  document.getElementById('btnDown').disabled = true;
+  document.getElementById('btnLeft').disabled = true;
+  document.getElementById('btnRight').disabled = true;
+  document.getElementById('startGameBtn').disabled = false;
+  document.getElementById('startGameBtn').textContent = '▶️ START GAME';
+  document.getElementById('gameRobotSelect').disabled = true;
+  setGameMsg('🔄 Game reset! Press <strong>START</strong> to begin.', 'info');
+  renderGame();
+  updateGameAGV();
+}
+
+function startGame() {
+  resetGame();
+  gameState.started = true;
+  document.getElementById('btnUp').disabled = false;
+  document.getElementById('btnDown').disabled = false;
+  document.getElementById('btnLeft').disabled = false;
+  document.getElementById('btnRight').disabled = false;
+  document.getElementById('startGameBtn').disabled = true;
+  document.getElementById('startGameBtn').textContent = '▶️ Playing...';
+  document.getElementById('gameRobotSelect').disabled = false;
+  setGameMsg('🎮 Game started! Use arrow keys or D-pad. Switch robots with dropdown!', 'info');
+  renderGame();
+  updateGameAGV();
+}
+
+function changeGameRobot() {
+  let sel = document.getElementById('gameRobotSelect');
+  let idx = parseInt(sel.value);
+  if (!gameState.started) return;
+  gameState.activeRobot = idx;
+  setGameMsg('🔄 Switched to ' + AGV_NAMES[idx], 'info');
+  renderGame();
+  updateGameAGV();
+}
+
+function setGameMsg(msg, type) {
+  let el = document.getElementById('gameMsg');
+  el.className = 'msg msg-' + (type || 'info');
+  el.innerHTML = msg;
+}
+
+function gameMove(dx, dy) {
+  if (gameState.over) return;
+  if (!gameState.started) {
+    setGameMsg('⚠️ Press <strong>START GAME</strong> first!', 'warning');
+    return;
+  }
+  let env = gameState.env;
+  let robot = gameState.robots[gameState.activeRobot];
+  let x = robot.pos[0], y = robot.pos[1];
+  let nx = x + dx, ny = y + dy;
+
+  if (!env.is_valid([nx, ny])) {
+    gameState.score = Math.max(0, gameState.score - 5);
+    setGameMsg('🚫 Blocked! Wall or obstacle. (-5 pts, Score: ' + gameState.score + ')', 'error');
+    renderGame();
+    updateGameAGV();
+    return;
+  }
+
+  robot.pos = [nx, ny];
+  gameState.path.push([nx, ny]);
+  gameState.steps++;
+  robot.battery = Math.max(0, robot.battery - 0.5);
+
+  let nk = nx+','+ny;
+
+  // Check pickup
+  if (!robot.carrying && env.get_available_boxes().some(b => b[0]===nx && b[1]===ny)) {
+    env.collect_box([nx, ny]);
+    robot.carrying = true;
+    gameState.events['r' + gameState.activeRobot + '_' + nk] = 'pickup';
+    gameState.score += 20;
+    setGameMsg('📦 Picked up box at (' + nx + ',' + ny + ')! (+20 pts)', 'warning');
+  }
+  // Check delivery
+  else if (robot.carrying && env.get_empty_slots().some(s => s[0]===nx && s[1]===ny)) {
+    env.fill_slot([nx, ny]);
+    robot.carrying = false;
+    robot.delivered++;
+    gameState.events['r' + gameState.activeRobot + '_' + nk] = 'delivery';
+    gameState.score += 50;
+    setGameMsg('✅ Delivered! (+50 pts, Score: ' + gameState.score + ')', 'success');
+    if (env.is_done()) {
+      setGameMsg('🎉 YOU WIN! All ' + env.boxes.size + ' boxes delivered! Final Score: ' + gameState.score, 'success');
+      gameState.over = true;
+      document.getElementById('btnUp').disabled = true;
+      document.getElementById('btnDown').disabled = true;
+      document.getElementById('btnLeft').disabled = true;
+      document.getElementById('btnRight').disabled = true;
+      if (!gameState.balloonsShown) {
+        gameState.balloonsShown = true;
+        showBalloons();
+      }
+    }
+  } else {
+    // Auto-recharge if standing still
+    robot.battery = Math.min(100, robot.battery + 0.2);
+    setGameMsg('🚶 Moved to (' + nx + ',' + ny + ')', 'info');
+  }
+
+  renderGame();
+  updateGameAGV();
+}
+
+function renderGame() {
+  let env = gameState.env;
+  let canvas = document.getElementById('gameCanvas');
+  let robot = gameState.robots[gameState.activeRobot];
+  document.getElementById('gameTitle').textContent = '🎮 Manual Game — ' + AGV_NAMES[gameState.activeRobot] + ' — Step ' + gameState.steps;
+
+  // Render all robots
+  let allPositions = gameState.robots.map(r => r.pos);
+  renderToCanvas(canvas, env, allPositions, gameState.path, gameState.events);
+
+  document.getElementById('gameDelivered').textContent = env.filled_slots.size + '/' + env.boxes.size;
+  document.getElementById('gameSteps').textContent = gameState.steps;
+  document.getElementById('gameCarrying').textContent = robot.carrying ? '✅' : '❌';
+  document.getElementById('gameBattery').textContent = Math.round(Math.max(0, robot.battery)) + '%';
+  document.getElementById('gameScore').textContent = gameState.score;
+}
+
+function updateGameAGV() {
+  let env = gameState.env;
+  for (let i = 0; i < NUM_ROBOTS; i++) {
+    let r = gameState.robots[i];
+    let status;
+    if (gameState.over) status = '✅ COMPLETED';
+    else if (r.carrying) status = '📦 CARRYING';
+    else status = '🚶 MOVING';
+    updateAGVStatus(i + 1, r.pos, status, r.battery, env.filled_slots.size, env.boxes.size);
+  }
+}
+
+function showBalloons() {
+  let colors = ['#FF6B35', '#004E89', '#1A936F', '#FFD700', '#FF69B4', '#00CED1'];
+  for (let i = 0; i < 50; i++) {
+    let el = document.createElement('div');
+    el.style.cssText = `
+      position: fixed; width: 8px; height: 8px; border-radius: 50%;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      left: ${Math.random() * 100}vw; top: -10px;
+      z-index: 1000; pointer-events: none;
+      animation: fall ${2 + Math.random() * 3}s linear forwards;
+      animation-delay: ${Math.random() * 0.5}s;
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 5000);
+  }
+}
+
+// Add keyframe animation
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+  @keyframes fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+`;
+document.head.appendChild(styleSheet);
+
+// Keyboard controls
+document.addEventListener('keydown', function(e) {
+  let tab = document.querySelector('.tab-content.active');
+  if (!tab || tab.id !== 'tab-game') return;
+  if (!gameState.started) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      startGame();
+    }
+    return;
+  }
+  let map = { 'ArrowUp': [-1, 0], 'ArrowDown': [1, 0], 'ArrowLeft': [0, -1], 'ArrowRight': [0, 1] };
+  if (map[e.key]) {
+    e.preventDefault();
+    gameMove(map[e.key][0], map[e.key][1]);
+  }
+});
+
+// ============================================================
+//  INIT
+// ============================================================
+renderSidebar();
+let initEnv = freshEnv();
+document.getElementById('simRobotCount').textContent = NUM_ROBOTS;
+document.getElementById('simBoxCount').textContent = initEnv.boxes.size;
+let obsCount = 0;
+for (let x = 0; x < initEnv.size; x++)
+  for (let y = 0; y < initEnv.size; y++)
+    if (initEnv.grid[x][y] === 1) obsCount++;
+document.getElementById('simObsCount').textContent = obsCount;
+renderSimIdle();
+drawPreview();
+resetGame();
+updateAllAGVs(gameState.robots, initEnv.boxes.size);
+</script>
+</body>
+</html>
