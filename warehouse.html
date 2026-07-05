@@ -101,10 +101,14 @@ canvas { display: block; margin: 0 auto; border-radius: 8px; max-width: 100%; im
 .paths-row canvas { max-width: 320px; }
 
 /* AGV sidebar - scrollable for 5 robots */
+.sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }
+.sidebar-overlay.open { opacity: 1; visibility: visible; }
 .sidebar { position: fixed; right: 0; top: 0; width: 280px; height: 100vh; background: #1a1d27; border-left: 1px solid #2a2e3a; padding: 16px; overflow-y: auto; z-index: 100; transform: translateX(100%); transition: transform 0.3s; }
 .sidebar.open { transform: translateX(0); }
-.sidebar-toggle { position: fixed; right: 12px; top: 12px; z-index: 101; background: #1a1d27; border: 1px solid #2a2e3a; border-radius: 8px; padding: 8px 12px; color: #fff; cursor: pointer; font-size: 13px; transition: opacity 0.3s, visibility 0.3s; }
+.sidebar-toggle { position: fixed; right: 12px; top:12px; z-index: 101; background: #1a1d27; border: 1px solid #2a2e3a; border-radius: 8px; padding: 8px 12px; color: #fff; cursor: pointer; font-size: 13px; transition: opacity 0.3s, visibility 0.3s; }
 .sidebar-toggle.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.sidebar-close { position: absolute; right: 12px; top: 12px; background: none; border: none; color: #888; font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: color 0.2s; }
+.sidebar-close:hover { color: #fff; background: #2a2e3a; }
 .main-content { margin-right: 0; transition: margin-right 0.3s; }
 .main-content.shifted { margin-right: 280px; }
 
@@ -164,16 +168,16 @@ canvas { display: block; margin: 0 auto; border-radius: 8px; max-width: 100%; im
 </head>
 <body>
 
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <div class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">🤖 AGV Fleet</div>
 <div class="sidebar" id="sidebar">
+  <button class="sidebar-close" onclick="closeSidebar()">✕</button>
   <h3 style="margin-bottom:12px;">🤖 AGV Fleet (5 Robots)</h3>
   <div id="agvStatusList"></div>
 </div>
 
-<div class="main-content" id="mainContent">
-<div class="container">
+<div class="container" id="mainContent">
 
-<h1>🏭 LogiX: Optimization & Play</h1>
 
 <!-- Tabs -->
 <div class="tab-bar">
@@ -313,7 +317,6 @@ canvas { display: block; margin: 0 auto; border-radius: 8px; max-width: 100%; im
   </div>
 </div>
 
-</div>
 </div>
 
 <script>
@@ -1027,9 +1030,22 @@ function toggleSidebar() {
   let sb = document.getElementById('sidebar');
   let mc = document.getElementById('mainContent');
   let toggle = document.getElementById('sidebarToggle');
+  let overlay = document.getElementById('sidebarOverlay');
   sb.classList.toggle('open');
   mc.classList.toggle('shifted');
   toggle.classList.toggle('hidden');
+  overlay.classList.toggle('open');
+}
+
+function closeSidebar() {
+  let sb = document.getElementById('sidebar');
+  let mc = document.getElementById('mainContent');
+  let toggle = document.getElementById('sidebarToggle');
+  let overlay = document.getElementById('sidebarOverlay');
+  sb.classList.remove('open');
+  mc.classList.remove('shifted');
+  toggle.classList.remove('hidden');
+  overlay.classList.remove('open');
 }
 
 const AGV_COLORS = ['#4FC3F7', '#FF8A65', '#81C784', '#FFD54F', '#CE93D8'];
